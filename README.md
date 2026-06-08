@@ -42,3 +42,9 @@ https://colab.research.google.com/github/googlecolab/colabtools/blob/main/notebo
 ### Container local com Python + R + jupyter lab + vscode web + Rstudio
 
 Siga as instruções em https://github.com/cgvis-inf-ufrgs/cgvis-dev-env
+
+### Banco utilizado:
+
+https://agromapa-my.sharepoint.com/:x:/g/personal/lucas_ramos_mpa_gov_br/ERtMMkNNT1JDtoLNM65A_ZQBfbRer6f3CJUo3GsBfiV9xQ?e=Af7YKm
+
+https://agromapa-my.sharepoint.com/personal/lucas_ramos_mpa_gov_br/_layouts/15/onedrive.aspx?id=%2Fpersonal%2Flucas%5Framos%5Fmpa%5Fgov%5Fbr%2FDocuments%2FPortal%20Base%20de%20Dados%20Abertos%2DSERMOP%2FDicion%C3%A1rios%20de%20dados%2F04%20%2D%20dicion%C3%A1rio%2Dde%2Ddados%2Dregistros%20de%20Armadores%20de%20Pesca%20MPA%2Epdf&parent=%2Fpersonal%2Flucas%5Framos%5Fmpa%5Fgov%5Fbr%2FDocuments%2FPortal%20Base%20de%20Dados%20Abertos%2DSERMOP%2FDicion%C3%A1rios%20de%20dados&ga=1
