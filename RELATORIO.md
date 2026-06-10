@@ -11,35 +11,25 @@
 
 ## Dados utilizados
 
-> [!IMPORTANT]
->
-> - Os dados utilizados devem ser informados como **links** para as fontes originais.
-> - Se houver mais de um conjunto de dados, liste todos separadamente.
-> - Para cada conjunto de dados, inclua também uma **descrição curta** explicando os dados.
-
-1. **Dataset 1**: <mark>`<link>`</mark>
-    * **Descrição curta**: <mark>`<preencher>`</mark>
-2. **Dataset 2**: <mark>`<link>`</mark>
-    * **Descrição curta**: <mark>`<preencher>`</mark>
-3. ...
+1. **Dataset 1**: [Registros de Armadores de Pesca — MPA/SERMOP](https://agromapa-my.sharepoint.com/:x:/g/personal/lucas_ramos_mpa_gov_br/ERtMMkNNT1JDtoLNM65A_ZQBfbRer6f3CJUo3GsBfiV9xQ)
+    * **Descrição curta**: Cadastro nacional de armadores de pesca (proprietários de embarcações) registrados no Ministério da Pesca e Aquicultura (MPA), contendo dados por município e estado de origem dos registros.
 
 ## Código-fonte da visualização
 
-> [!IMPORTANT]
->
-> - Indique abaixo onde está, dentro deste repositório, o código-fonte usado para gerar a visualização.
-
-- **Arquivo principal**: <mark>`<preencher>`</mark>
-- **Arquivos complementares (se houver)**: <mark>`<preencher>`</mark>
+- **Arquivo principal**: `visualizacao_pescadores.ipynb`
+- **Arquivos complementares (se houver)**: `mapa_pescadores_brasil.html` (saída interativa gerada pelo notebook)
 
 ## Imagem da visualização gerada
 
-> [!IMPORTANT]
->
-> - Insira aqui uma imagem da visualização criada por você. Troque `imagem-da-visualizacao.png` pelo caminho correto do arquivo no repositório. 
-> - Se você criou alguma visualização interativa, então descreva aqui como acessá-la. Por exemplo, se for uma página HTML, coloque o link, ou se for uma visualização 3D, descreva como compilar e executar o código. 
+A visualização principal é **interativa** — arquivo `mapa_pescadores_brasil.html`.
 
-<mark>`<preencher abaixo>`</mark>
+**Como acessar:** Baixe o arquivo `mapa_pescadores_brasil.html` deste repositório e abra-o em qualquer navegador moderno (Chrome, Firefox, Edge). Não é necessário servidor ou conexão com a internet.
+
+**Funcionalidades:**
+- Clique em qualquer estado para zoom e isolamento geográfico
+- Painel lateral deslizante com relatório detalhado (3 abas: Resumo, Ranking, Insights)
+- Botão de download do relatório em `.txt` por estado ou região
+- Controle de camadas: Heatmap de concentração, MarkerCluster, Pontos individuais
 
 ![Visualização resultante](imagem-da-visualizacao.png)
 
@@ -47,18 +37,8 @@
 
 ### Legenda (*caption*)
 
-> [!IMPORTANT]
->
-> - Escreva um texto curto explicando como interpretar a visualização. Descreva os elementos visuais, eixos, cores, símbolos ou interações relevantes.
-> - Este texto seria a legenda (*caption*) que acompanharia a figura em uma publicação, por exemplo.
-
-<mark>`<preencher>`</mark>
+<mark>`<preencher com suas próprias palavras>`</mark>
 
 ### Conclusão demonstrada pela visualização
 
-> [!IMPORTANT]
->
-> - Escreva uma conclusão curta sobre os dados com base na visualização.
-> - Explique qual insight, padrão ou tendência pode ser observado.
-
-<mark>`<preencher>`</mark>
+<mark>`<preencher com suas próprias palavras>`</mark>
