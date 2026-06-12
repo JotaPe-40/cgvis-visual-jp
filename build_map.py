@@ -760,7 +760,7 @@ html_final = (HTML
   .replace('__CONC__',     CONC_STR)
 )
 
-out = '/home/claude/mapa_v4.html'
+out = './mapa.html'
 with open(out, 'w', encoding='utf-8') as f:
     f.write(html_final)
 
