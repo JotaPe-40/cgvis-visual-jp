@@ -189,10 +189,43 @@ TOT_STR  = f"{TOTAL:,}".replace(",",".")
 
 print(f"Dados prontos: {TOTAL} registros | {len(stats_uf)} estados | {len(stats_reg)} regiões")
 
-# Ler assets inline
-LEAFLET_JS  = open('/home/claude/leaflet_full.js',  encoding='utf-8').read()
-LEAFLET_CSS = open('/home/claude/leaflet_full.css', encoding='utf-8').read()
-LEAFLET_HEAT= open('/home/claude/leaflet-heat.js',  encoding='utf-8').read()
+# Baixar assets inline (Leaflet + plugin de heatmap)
+# Os assets são embutidos diretamente no HTML — sem dependência de CDN externo
+import tarfile, io
+
+def _baixar_assets():
+    print("Baixando Leaflet.js e Leaflet.heat (necessário apenas uma vez)...")
+    assets = {}
+
+    # Leaflet via npm registry (inclui dist/ compilado)
+    r = requests.get(
+        "https://registry.npmjs.org/leaflet/-/leaflet-1.9.4.tgz",
+        timeout=60)
+    r.raise_for_status()
+    t = tarfile.open(fileobj=io.BytesIO(r.content))
+    for member in t.getmembers():
+        if member.name.endswith('dist/leaflet.js') and 'src' not in member.name:
+            assets['js']  = t.extractfile(member).read().decode('utf-8')
+        if member.name.endswith('dist/leaflet.css'):
+            assets['css'] = t.extractfile(member).read().decode('utf-8')
+    print(f"  leaflet.js:  {len(assets.get('js',''))//1024}KB")
+    print(f"  leaflet.css: {len(assets.get('css',''))//1024}KB")
+
+    # Leaflet.heat via GitHub (único lugar confiável com o dist compilado)
+    r2 = requests.get(
+        "https://raw.githubusercontent.com/Leaflet/Leaflet.heat/gh-pages/dist/leaflet-heat.js",
+        timeout=30)
+    r2.raise_for_status()
+    assets['heat'] = r2.text
+    print(f"  leaflet-heat.js: {len(assets['heat'])//1024}KB")
+
+    return assets
+
+_a = _baixar_assets()
+LEAFLET_JS   = _a['js']
+LEAFLET_CSS  = _a['css']
+LEAFLET_HEAT = _a['heat']
+print("Assets prontos!\n")
 
 HTML = """<!DOCTYPE html>
 <html lang="pt-BR">
