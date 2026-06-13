@@ -624,7 +624,7 @@ html_final = (HTML
   .replace('__CONC__',     D['CONC'])
   .replace('TOTAL_BR_PLACEHOLDER', D['TOTAL_STR']))
 
-with open("mapa.html", "w", encoding="utf-8") as f:
+with open("mapa_pesca_unificado.html", "w", encoding="utf-8") as f:
     f.write(html_final)
 
-print("Sucesso! O arquivo unificado 'mapa.html' foi gerado.")
+print("Sucesso! O arquivo unificado 'mapa_pesca_unificado.html' foi gerado.")
