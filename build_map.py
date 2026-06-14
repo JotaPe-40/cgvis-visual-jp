@@ -238,12 +238,12 @@ for m in t.getmembers():
 LHEAT=requests.get("https://raw.githubusercontent.com/Leaflet/Leaflet.heat/gh-pages/dist/leaflet-heat.js",timeout=30).text
 print(f"  js {len(LJS)//1024}KB | css {len(LCSS)//1024}KB | heat {len(LHEAT)//1024}KB")
 
-template = open('/tmp/template_v7.html', encoding='utf-8').read()
+template = open('./template.html', encoding='utf-8').read()
 html = template
 for k,v in D.items():
     html = html.replace(f'%%{k}%%', v)
 html = html.replace('%%LEAFLET_CSS%%',LCSS).replace('%%LEAFLET_JS%%',LJS).replace('%%LEAFLET_HEAT%%',LHEAT)
 
-out='/tmp/mapa_v7.html'
+out='./mapa.html'
 with open(out,'w',encoding='utf-8') as f: f.write(html)
 print(f"\nGerado: {out}  ({os.path.getsize(out)/1024/1024:.1f} MB)")
