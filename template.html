@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>Armadores de Pesca — Brasil</title>
+<style>
+%%LEAFLET_CSS%%
+
+/* ── TEMA ──────────────────────────────────────────────────────────── */
+:root {
+  --bg:        #0f172a;
+  --bg2:       #1e293b;
+  --bg3:       #0d1424;
+  --border:    #334155;
+  --border2:   #1e3a5f;
+  --text:      #e2e8f0;
+  --text2:     #94a3b8;
+  --text3:     #64748b;
+  --accent:    #3b82f6;
+  --accent2:   #60a5fa;
+  --map-bg:    #0f172a;
+  --card-bg:   #0d1424;
+  --ins-bg:    #0c1929;
+  --bar-bg:    #1e293b;
+}
+[data-theme="light"] {
+  --bg:        #f8fafc;
+  --bg2:       #ffffff;
+  --bg3:       #f1f5f9;
+  --border:    #e2e8f0;
+  --border2:   #bfdbfe;
+  --text:      #0f172a;
+  --text2:     #475569;
+  --text3:     #94a3b8;
+  --accent:    #2563eb;
+  --accent2:   #3b82f6;
+  --map-bg:    #e2e8f0;
+  --card-bg:   #ffffff;
+  --ins-bg:    #f0f7ff;
+  --bar-bg:    #e2e8f0;
+}
+[data-theme="light"] .leaflet-container { background: #dde4ed !important; }
+
+/* ── RESET ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  background: var(--map-bg); color: var(--text); }
+
+/* ── LAYOUT ─────────────────────────────────────────────────────────── */
+#app   { display: flex; width: 100vw; height: 100vh; }
+#map-wrap { flex: 1; position: relative; overflow: hidden; min-width: 0; }
+#map  { position: absolute; inset: 0; }
+.leaflet-container { background: var(--map-bg) !important; }
+
+/* ── TOOLBAR ─────────────────────────────────────────────────────────── */
+#toolbar {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 1000; display: flex; align-items: center; gap: 8px;
+  pointer-events: none;
+}
+#title-box {
+  pointer-events: none;
+  background: rgba(15,23,42,.92); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 8px 20px; text-align: center;
+  color: var(--text); font-size: 13px; font-weight: 600; white-space: nowrap;
+  box-shadow: 0 4px 24px rgba(0,0,0,.5); backdrop-filter: blur(8px);
+}
+[data-theme="light"] #title-box { background: rgba(255,255,255,.92); }
+#title-box span { display: block; font-size: 10px; font-weight: 400; color: var(--text3); margin-top: 2px; }
+
+#btn-back {
+  pointer-events: all; display: none;
+  background: var(--bg2); color: var(--accent2);
+  border: 1px solid var(--accent); border-radius: 8px;
+  padding: 8px 14px; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+  transition: all .2s; backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+#btn-back:hover { background: var(--accent); color: #fff; }
+
+/* ── BUSCA ────────────────────────────────────────────────────────────── */
+#search-wrap { position: absolute; top: 14px; left: 14px; z-index: 1000; }
+#search-input {
+  width: 210px; padding: 8px 14px 8px 34px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-size: 12px; font-family: inherit;
+  outline: none; transition: all .2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2); backdrop-filter: blur(8px);
+}
+#search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+#search-input::placeholder { color: var(--text3); }
+#search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 13px; pointer-events: none; }
+#search-results {
+  position: absolute; top: calc(100% + 4px); left: 0; width: 240px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+  max-height: 220px; overflow-y: auto; display: none; z-index: 1001;
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+}
+.sr-item { padding: 8px 14px; cursor: pointer; font-size: 12px; color: var(--text);
+  border-bottom: 1px solid var(--border); transition: background .15s; }
+.sr-item:last-child { border: none; }
+.sr-item:hover { background: var(--bg3); color: var(--accent2); }
+.sr-uf { font-size: 10px; color: var(--text3); margin-left: 6px;
+  background: var(--bar-bg); padding: 1px 5px; border-radius: 4px; }
+.search-pin-icon { width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; border: 3px solid var(--accent);
+  box-shadow: 0 0 8px var(--accent); }
+
+/* ── CONTROLES (canto inferior esquerdo) ─────────────────────────────── */
+#ctrls { position: absolute; bottom: 20px; left: 14px; z-index: 1000;
+  display: flex; flex-direction: column; gap: 4px; }
+.ctrl {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 13px; color: var(--text2);
+  font-size: 11px; cursor: pointer; font-family: inherit;
+  transition: all .2s; text-align: left;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2); backdrop-filter: blur(8px);
+}
+.ctrl.on  { border-color: var(--accent); color: var(--accent2); background: rgba(59,130,246,.1); }
+.ctrl:hover { border-color: var(--accent); color: var(--accent2); }
+
+/* Botão modo claro/escuro */
+#theme-btn {
+  position: absolute; bottom: 20px; right: 380px; z-index: 1000;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 13px; cursor: pointer;
+  font-size: 11px; color: var(--text2); font-family: inherit;
+  transition: all .2s; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+#theme-btn:hover { border-color: var(--accent); color: var(--accent2); }
+
+/* ── LEGENDA ─────────────────────────────────────────────────────────── */
+#legenda {
+  position: absolute; bottom: 20px; left: 210px; z-index: 1000;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; color: var(--text2); font-size: 11px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2); backdrop-filter: blur(8px);
+}
+#legenda b { color: var(--text); font-size: 11px; }
+.li { display: flex; align-items: center; gap: 7px; margin-top: 5px; }
+.ld { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+.hbar { width: 90px; height: 6px; border-radius: 3px;
+  background: linear-gradient(to right,#00f,#0ff,#0f0,#ff0,#f80,#f00); margin-top: 5px; }
+.hlb { display: flex; justify-content: space-between; font-size: 9px;
+  color: var(--text3); margin-top: 2px; }
+
+/* ── PAINEL ───────────────────────────────────────────────────────────── */
+#pw { width: 360px; flex-shrink: 0; position: relative; display: flex; }
+#ptoggle {
+  position: absolute; top: 50%; left: -26px; transform: translateY(-50%);
+  width: 26px; height: 52px; background: var(--bg2); color: var(--text3);
+  border: 1px solid var(--border); border-right: none;
+  border-radius: 10px 0 0 10px; cursor: pointer; font-size: 12px; z-index: 10;
+  display: flex; align-items: center; justify-content: center; transition: all .2s;
+}
+#ptoggle:hover { background: var(--bg3); color: var(--accent2); }
+#panel {
+  width: 360px; height: 100%; background: var(--bg);
+  border-left: 1px solid var(--border); display: flex; flex-direction: column;
+  overflow: hidden; transition: transform .3s ease;
+}
+#panel.hidden { transform: translateX(360px); }
+
+/* Header do painel */
+#ph {
+  padding: 16px 18px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  background: var(--bg3);
+}
+#ph h2 { font-size: 14px; color: var(--text); font-weight: 600; margin: 0 0 2px; }
+#ph .sub { font-size: 10px; color: var(--text3); }
+
+/* Breadcrumb */
+#bc {
+  padding: 6px 18px; background: var(--bg3); border-bottom: 1px solid var(--border);
+  color: var(--text3); font-size: 11px; flex-shrink: 0;
+}
+.bcl { color: var(--accent2); cursor: pointer; }
+.bcl:hover { text-decoration: underline; }
+
+/* Tabs */
+#tabs {
+  display: flex; background: var(--bg3);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.tb {
+  flex: 1; padding: 9px 2px; background: none; border: none;
+  color: var(--text3); font-size: 10px; cursor: pointer; font-family: inherit;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all .2s; letter-spacing: 0.2px;
+}
+.tb.on  { color: var(--accent2); border-bottom-color: var(--accent); }
+.tb:hover { color: var(--text); }
+
+/* Conteúdo */
+#pc { flex: 1; overflow-y: auto; }
+.tp { display: none; padding: 16px 18px; }
+.tp.on { display: block; }
+
+/* Default screen */
+#dm { padding: 24px 18px; text-align: center; }
+#dm .tot { font-size: 28px; font-weight: 700; color: var(--accent); margin: 6px 0; }
+
+/* Stat cards */
+.sg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+.sc {
+  background: var(--card-bg); border-radius: 8px; padding: 10px 12px;
+  border-left: 3px solid var(--a, var(--accent)); transition: transform .2s;
+}
+.sc:hover { transform: translateY(-1px); }
+.sc .v { font-size: 20px; font-weight: 700; color: var(--text); }
+.sc .l { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+/* Section titles */
+.st {
+  font-size: 10px; font-weight: 700; color: var(--accent2);
+  text-transform: uppercase; letter-spacing: 1.2px; margin: 14px 0 6px;
+}
+
+/* Barras */
+.br { margin-bottom: 7px; }
+.bl { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px; }
+.bl .n { color: var(--text); }
+.bl .c { color: var(--text3); }
+.bb { height: 5px; background: var(--bar-bg); border-radius: 3px; }
+.bf { height: 5px; border-radius: 3px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+
+/* Minibar */
+.mbar-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; font-size: 11px; }
+.mbar-lbl { width: 90px; color: var(--text2); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; flex-shrink: 0; font-size: 11px; }
+.mbar-bg { flex: 1; height: 16px; background: var(--bar-bg); border-radius: 4px; overflow: hidden; }
+.mbar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center;
+  justify-content: flex-end; padding-right: 5px;
+  transition: width .6s cubic-bezier(.4,0,.2,1); }
+.mbar-val { font-size: 9px; color: rgba(255,255,255,.9); white-space: nowrap; font-weight: 600; }
+[data-theme="light"] .mbar-val { color: rgba(0,0,0,.7); }
+
+/* Insight boxes */
+.ins {
+  background: var(--ins-bg); border-left: 3px solid #f59e0b;
+  border-radius: 0 8px 8px 0; padding: 9px 12px; margin-bottom: 6px;
+  font-size: 11px; color: var(--text); line-height: 1.6;
+}
+.ins .tg { font-size: 9px; font-weight: 700; color: #f59e0b;
+  text-transform: uppercase; display: block; margin-bottom: 3px; letter-spacing: 0.5px; }
+.ins.blue   { border-left-color: var(--accent); }
+.ins.blue .tg   { color: var(--accent2); }
+.ins.green  { border-left-color: #10b981; }
+.ins.green .tg  { color: #10b981; }
+.ins.red    { border-left-color: #ef4444; }
+.ins.red .tg    { color: #ef4444; }
+.ins.purple { border-left-color: #8b5cf6; }
+.ins.purple .tg { color: #8b5cf6; }
+
+/* Badge de região */
+.rb { display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 10px; font-weight: 700; color: #0f172a; margin-left: 4px; }
+
+/* Chips de filtro */
+.filter-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+.fchip {
+  padding: 4px 10px; border-radius: 20px;
+  border: 1px solid var(--border); background: var(--card-bg);
+  color: var(--text2); font-size: 11px; cursor: pointer; font-family: inherit; transition: all .2s;
+}
+.fchip.on { border-color: var(--accent); color: var(--accent2); background: rgba(59,130,246,.1); }
+.fchip:hover { border-color: var(--accent); }
+
+/* Chart */
+.chart-wrap { position: relative; width: 100%; height: 165px; margin: 8px 0; }
+.chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+/* Botões de ação */
+.dl-btn {
+  display: block; width: 100%;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 8px; padding: 10px;
+  font-size: 12px; cursor: pointer; font-family: inherit;
+  font-weight: 600; margin-top: 10px; transition: all .2s;
+  letter-spacing: 0.3px;
+}
+.dl-btn:hover { background: var(--accent2); transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59,130,246,.4); }
+
+/* Modal relatório */
+#rel-ov {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.7); z-index: 20000;
+  align-items: center; justify-content: center; backdrop-filter: blur(4px);
+}
+#rel-ov.show { display: flex; }
+#rel-box {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 14px; width: 540px; max-height: 84vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,.5);
+}
+#rel-hd { padding: 18px 22px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+#rel-hd h3 { color: var(--text); font-size: 15px; margin: 0; font-weight: 600; }
+#rel-hd .sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+#rel-bd { flex: 1; overflow-y: auto; padding: 16px 22px; }
+#rel-bd pre {
+  font-family: 'Courier New', monospace; font-size: 11px; white-space: pre-wrap;
+  background: var(--bg3); border-radius: 8px; padding: 14px;
+  color: #a5b4fc; line-height: 1.7; border: 1px solid var(--border);
+}
+[data-theme="light"] #rel-bd pre { color: #4338ca; }
+.rel-acts {
+  padding: 14px 22px; border-top: 1px solid var(--border);
+  display: flex; gap: 8px; flex-shrink: 0;
+}
+.rbtn {
+  flex: 1; padding: 9px; border: none; border-radius: 8px;
+  font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .2s;
+}
+.rbtn:hover { transform: translateY(-1px); }
+.rbtn.dl { background: var(--accent); color: #fff; }
+.rbtn.dp { background: #7c3aed; color: #fff; }
+.rbtn.cp { background: var(--bg2); color: var(--accent2); border: 1px solid var(--border); }
+.rbtn.cl { background: var(--bg2); color: var(--text3); border: 1px solid var(--border); }
+
+/* IDH */
+.idh-h { color: #10b981; } .idh-m { color: #f59e0b; } .idh-l { color: #ef4444; }
+#idhC { width: 100%; overflow: hidden; }
+
+/* Footer */
+#pf {
+  padding: 8px 18px; border-top: 1px solid var(--border);
+  background: var(--bg3); color: var(--text3); font-size: 10px; text-align: center;
+  flex-shrink: 0; letter-spacing: 0.3px;
+}
+
+/* Tooltip Leaflet */
+.leaflet-tooltip.ctip {
+  background: rgba(15,23,42,.95) !important; border: 1px solid #1e3a5f !important;
+  color: #e2e8f0 !important; font-size: 12px !important; border-radius: 8px !important;
+  padding: 7px 12px !important; box-shadow: 0 4px 16px rgba(0,0,0,.4) !important;
+  line-height: 1.5 !important;
+}
+[data-theme="light"] .leaflet-tooltip.ctip {
+  background: rgba(255,255,255,.97) !important; color: #0f172a !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+/* Scrollbar */
+#pc::-webkit-scrollbar, #rel-bd::-webkit-scrollbar, #search-results::-webkit-scrollbar
+  { width: 4px; }
+#pc::-webkit-scrollbar-thumb, #rel-bd::-webkit-scrollbar-thumb,
+#search-results::-webkit-scrollbar-thumb
+  { background: var(--border); border-radius: 3px; }
+
+/* Leaflet zoom */
+.leaflet-control-zoom a {
+  background: var(--bg2) !important; color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+.leaflet-control-zoom a:hover { background: var(--bg3) !important; color: var(--accent2) !important; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- MAPA -->
+<div id="map-wrap">
+  <div id="map"></div>
+
+  <!-- Toolbar centralizado -->
+  <div id="toolbar">
+    <button id="btn-back" onclick="voltarBrasil()">← Voltar ao Brasil</button>
+    <div id="title-box">
+      🐟 Distribuição Geográfica de Armadores de Pesca no Brasil
+      <span>MPA/SERMOP · clique num estado para analisar · busque um município</span>
+    </div>
+  </div>
+
+  <!-- Busca -->
+  <div id="search-wrap">
+    <span id="search-icon">🔍</span>
+    <input id="search-input" type="text" placeholder="Buscar município..."
+      oninput="buscarMunicipio(this.value)" onblur="setTimeout(fecharBusca,200)">
+    <div id="search-results"></div>
+  </div>
+
+  <!-- Controles de camada -->
+  <div id="ctrls">
+    <button class="ctrl on" id="c-heat"   onclick="toggleCamada('heat')">🔥 Heatmap</button>
+    <button class="ctrl"    id="c-pontos" onclick="toggleCamada('pontos')">⚫ Pontos</button>
+    <button class="ctrl"    id="c-rios"   onclick="toggleCamada('rios')">🌊 Rios</button>
+  </div>
+
+  <!-- Modo claro/escuro -->
+  <button id="theme-btn" onclick="toggleTheme()" title="Alternar modo claro/escuro">🌙 Escuro</button>
+
+  <!-- Legenda -->
+  <div id="legenda">
+    <b>Regiões</b>
+    <div class="li"><div class="ld" style="background:#00e676;outline:1.5px solid #00c853"></div><span>Norte</span></div>
+    <div class="li"><div class="ld" style="background:#ffab40;outline:1.5px solid #e65100"></div><span>Nordeste</span></div>
+    <div class="li"><div class="ld" style="background:#ff5252;outline:1.5px solid #b71c1c"></div><span>Centro-Oeste</span></div>
+    <div class="li"><div class="ld" style="background:#40c4ff;outline:1.5px solid #01579b"></div><span>Sudeste</span></div>
+    <div class="li"><div class="ld" style="background:#ea80fc;outline:1.5px solid #6a0080"></div><span>Sul</span></div>
+    <div style="margin-top:8px"><b>Heatmap</b></div>
+    <div class="hbar"></div>
+    <div class="hlb"><span>Baixa</span><span>Alta</span></div>
+  </div>
+</div>
+
+<!-- PAINEL -->
+<div id="pw">
+  <button id="ptoggle" onclick="togglePanel()">◀</button>
+  <div id="panel">
+    <div id="ph">
+      <h2>🐟 Armadores de Pesca</h2>
+      <div class="sub">Clique num estado no mapa para análise completa</div>
+    </div>
+    <div id="bc">
+      <span class="bcl" onclick="voltarBrasil()">🇧🇷 Brasil</span>
+      <span id="bc2"></span>
+    </div>
+    <div id="tabs">
+      <button class="tb on" onclick="showTab('resumo')">📊 Resumo</button>
+      <button class="tb"    onclick="showTab('temporal')">📅 Temporal</button>
+      <button class="tb"    onclick="showTab('tipos')">🎯 Tipos</button>
+      <button class="tb"    onclick="showTab('idh')">📈 IDH</button>
+      <button class="tb"    onclick="showTab('insights')">💡 Insights</button>
+    </div>
+    <div id="pc">
+      <div id="dm">
+        <div style="font-size:40px;margin-bottom:10px">🗺️</div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.7">
+          Clique em qualquer <strong style="color:var(--text)">estado</strong> no mapa<br>
+          para isolar e analisar em detalhes.
+        </p>
+        <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+        <p style="color:var(--text3);font-size:11px;margin-bottom:4px">Total registrado no Brasil</p>
+        <div class="tot">%%TOTAL_STR%%</div>
+        <p style="color:var(--text3);font-size:11px">armadores de pesca</p>
+        <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+        <div class="st" style="text-align:left">Conclusões da análise</div>
+        <div id="conc-gerais"></div>
+      </div>
+      <div class="tp" id="tp-resumo"></div>
+      <div class="tp" id="tp-temporal"></div>
+      <div class="tp" id="tp-tipos"></div>
+      <div class="tp" id="tp-idh"></div>
+      <div class="tp" id="tp-insights"></div>
+    </div>
+    <div id="pf">Fonte: MPA/SERMOP &nbsp;·&nbsp; INF01047 UFRGS &nbsp;·&nbsp; Leaflet + Chart.js</div>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<!-- MODAL RELATÓRIO -->
+<div id="rel-ov" onclick="if(event.target===this)fecharRel()">
+  <div id="rel-box">
+    <div id="rel-hd">
+      <h3 id="rel-titulo">Relatório</h3>
+      <div class="sub" id="rel-sub"></div>
+    </div>
+    <div id="rel-bd"><pre id="rel-txt"></pre></div>
+    <div class="rel-acts">
+      <button class="rbtn dl" onclick="baixarRel('txt')">⬇ .txt</button>
+      <button class="rbtn dp" onclick="baixarRel('pdf')">🖨 PDF</button>
+      <button class="rbtn cp" onclick="copiarRel()">📋 Copiar</button>
+      <button class="rbtn cl" onclick="fecharRel()">✕ Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>%%LEAFLET_JS%%</script>
+<script>%%LEAFLET_HEAT%%</script>
+<script>
+// ── DADOS ──────────────────────────────────────────────────────────────
+const GJ       = %%GJ%%;
+const GJ_RIOS  = %%GJ_RIOS%%;
+const S_UF     = %%S_UF%%;
+const S_REG    = %%S_REG%%;
+const PTS_UF   = %%PTS_UF%%;
+const PTS_REG  = %%PTS_REG%%;
+const HEAT_UF  = %%HEAT_UF%%;
+const HEAT_REG = %%HEAT_REG%%;
+const HEAT_BR  = %%HEAT_BR%%;
+const BBOX_UF  = %%BBOX_UF%%;
+const SERIE_UF = %%SERIE_UF%%;
+const SERIE_REG= %%SERIE_REG%%;
+const ANOS     = %%ANOS%%;
+const IDH_UF   = %%IDH_UF%%;
+const IDH_CORR = %%IDH_CORR%%;
+const PEARSON  = %%PEARSON%%;
+const MUNIS    = %%MUNIS%%;
+const TOTAL    = %%TOTAL_NUM%%;
+const CONC     = %%CONC%%;
+
+const COR = {Norte:'#00e676',Nordeste:'#ffab40','Centro-Oeste':'#ff5252',
+  Sudeste:'#40c4ff',Sul:'#ea80fc',Desconhecido:'#9ca3af'};
+const COR_B = {Norte:'#00c853',Nordeste:'#e65100','Centro-Oeste':'#b71c1c',
+  Sudeste:'#01579b',Sul:'#6a0080',Desconhecido:'#374151'};
+
+let sel=null, selTipo=null, panelOn=true, heatOn=true, pontosOn=false, riosOn=false;
+let tabAtual='resumo', relTxt='', relTitulo='';
+let filtroTipo='todos', filtroVinculo='todos';
+let chartUF=null, chartReg=null, searchMarker=null;
+let isDark=true;
+
+// ── TEMA ───────────────────────────────────────────────────────────────
+function toggleTheme() {
+  isDark = !isDark;
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  document.getElementById('theme-btn').textContent = isDark ? '🌙 Escuro' : '☀️ Claro';
+  // Atualizar cor de fundo do mapa
+  document.querySelector('.leaflet-container').style.background = isDark ? '#0f172a' : '#dde4ed';
+  bgRect.setStyle({color: isDark?'#0f172a':'#dde4ed', fillColor: isDark?'#0f172a':'#dde4ed'});
+}
+
+// ── MAPA ────────────────────────────────────────────────────────────────
+const BRASIL = L.latLngBounds(L.latLng(-34.5,-74.5), L.latLng(6.5,-27.5));
+
+// FIX isolamento: NÃO usar preferCanvas:true
+// Isso garante que polígonos SVG ficam em pane separado do canvas do heatmap
+const map = L.map('map', {
+  center:[-14,-52], zoom:4, minZoom:4, maxZoom:13,
+  zoomControl:true, maxBounds:BRASIL, maxBoundsViscosity:1.0,
+  // preferCanvas: false (default) — polígonos em SVG, heatmap em canvas separado
+});
+
+// Fundo mundial escuro — salvo em variável para atualizar no toggle de tema
+const bgRect = L.rectangle([[-90,-180],[90,180]], {
+  color:'#0f172a', fillColor:'#0f172a', fillOpacity:1,
+  stroke:false, interactive:false
+}).addTo(map);
+
+// ── HEATMAP ─────────────────────────────────────────────────────────────
+// FIX: criar heatLayer no pane correto, APÓS mapa pronto
+const HOPTS = {
+  radius:22, blur:18, maxZoom:13, max:1.0,
+  gradient:{0:'#0000ff',0.2:'#00ccff',0.4:'#00ff88',0.6:'#ffff00',0.8:'#ff8800',1:'#f00'},
+  minOpacity:0.4,
+};
+let heatLayer = null;
+
+function criarHeat(data, r) {
+  return L.heatLayer(data, Object.assign({}, HOPTS, {radius:r, blur:Math.round(r*.85)}));
+}
+
+// FIX: whenReady garante dimensões corretas antes de renderizar o heatmap
+map.whenReady(() => {
+  map.invalidateSize();
+  heatLayer = criarHeat(HEAT_BR, 22);
+  heatLayer.addTo(map);
+  setTimeout(() => map.invalidateSize(), 150);
+});
+
+// ── RIOS ─────────────────────────────────────────────────────────────────
+const riosLayer = L.geoJSON(GJ_RIOS, {
+  style: { color:'#38bdf8', weight:1.8, opacity:0.65, dashArray:'5,4' },
+  onEachFeature(feat, layer) {
+    const n = feat.properties?.name || 'Rio';
+    layer.bindTooltip(`🌊 ${n}`, {className:'ctip', sticky:true});
+  }
+});
+
+// ── GEOJSON ESTADOS ───────────────────────────────────────────────────────
+// FIX isolamento: polígonos em SVG (padrão), heatmap em canvas separado
+// Assim, ao pintar estado de #0f172a, ele fica ACIMA do canvas do heatmap no z-order
+const featMap = {};
+
+function corPoly(uf, reg) {
+  if (!sel) return COR[reg] || '#9ca3af';
+  if (selTipo==='uf')  return uf===sel  ? COR[reg] : null; // null = esconder
+  if (selTipo==='reg') return reg===sel ? COR[reg] : null;
+  return COR[reg];
+}
+
+function estilo(f) {
+  const uf  = f.properties.uf  || '';
+  const reg = f.properties.regiao || 'Desconhecido';
+  const cor = corPoly(uf, reg);
+  const isSel = sel && ((selTipo==='uf'&&uf===sel)||(selTipo==='reg'&&reg===sel));
+
+  // FIX isolamento: estados não selecionados ficam com fillOpacity:0 (invisíveis)
+  // E uma cor de stroke escura para mostrar a borda do Brasil
+  if (cor === null) {
+    return { fillColor:'#0f172a', color:'#1e293b', weight:0.5, fillOpacity:0.97 };
+  }
+  return {
+    fillColor: cor,
+    color: isSel ? '#fbbf24' : 'rgba(255,255,255,0.15)',
+    weight: isSel ? 2.5 : 0.8,
+    fillOpacity: 0.72,
+  };
+}
+
+const gjLayer = L.geoJSON(GJ, {
+  style: estilo,
+  onEachFeature(feat, layer) {
+    const uf  = feat.properties.uf  || '';
+    const reg = feat.properties.regiao || '';
+    const n   = feat.properties.n_estado || 0;
+    const idh = feat.properties.idh || 0;
+    featMap[uf] = layer;
+
+    layer.on('mouseover', e => {
+      if (sel && selTipo==='uf'  && uf  !== sel) return;
+      if (sel && selTipo==='reg' && reg !== sel) return;
+      e.target.setStyle({ fillOpacity:0.9, weight:2.5, color:'#fbbf24' });
+    });
+    layer.on('mouseout', () => gjLayer.setStyle(estilo));
+    layer.on('click',    () => selecionarUF(uf));
+    layer.bindTooltip(
+      `<b>${feat.properties.name}</b><br>
+       Região: ${reg} &nbsp;·&nbsp; IDH: ${idh}<br>
+       <span style="color:#60a5fa;font-weight:600">${n.toLocaleString('pt-BR')}</span> pescadores`,
+      { sticky:true, className:'ctip' }
+    );
+  }
+}).addTo(map);
+
+// ── PONTOS ─────────────────────────────────────────────────────────────
+const pontosLayer = L.layerGroup();
+
+function buildPontos() {
+  pontosLayer.clearLayers();
+  let pares = [];
+  if (!sel)               pares = Object.entries(PTS_UF);
+  else if (selTipo==='uf')  pares = [[sel, PTS_UF[sel]||[]]];
+  else                    pares = [[sel, PTS_REG[sel]||[]]];
+
+  pares.forEach(([id, pts]) => {
+    const reg = selTipo==='reg' ? id : (S_UF[id]?.regiao || '');
+    const cor = COR[reg] || '#9ca3af';
+    const brd = COR_B[reg] || '#374151';
+    pts.forEach(p => {
+      const [lat,lon,mun,uf2,tipo,vinc] = p;
+      if (filtroTipo==='fisica'   && tipo !== 'Pessoa Física')   return;
+      if (filtroTipo==='juridica' && tipo !== 'Pessoa Jurídica') return;
+      if (filtroVinculo==='Armador'      && vinc && !vinc.includes('Armador'))      return;
+      if (filtroVinculo==='Proprietário' && vinc && !vinc.includes('Proprietário')) return;
+      L.circleMarker([lat,lon], {
+        radius:5, color:brd, weight:1.5, fillColor:cor, fillOpacity:0.92,
+      }).bindTooltip(
+        `${mun} (${uf2||id})<br><span style="font-size:10px;color:var(--text2)">${tipo||''}</span>`,
+        {className:'ctip'}
+      ).addTo(pontosLayer);
+    });
+  });
+}
+
+// ── SELECIONAR UF ──────────────────────────────────────────────────────
+function selecionarUF(uf) {
+  if (!uf) return;
+  sel = uf; selTipo = 'uf';
+
+  // FIX: aplicar estilo ANTES de recriar o heatmap
+  gjLayer.setStyle(estilo);
+
+  const b = BBOX_UF[uf] || [-35,-74,6,-28];
+  map.fitBounds([[b[0],b[1]],[b[2],b[3]]], {padding:[50,50], maxZoom:10, animate:true});
+
+  // Heatmap apenas do estado
+  if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+  if (heatOn) {
+    heatLayer = criarHeat(HEAT_UF[uf] || [], 26);
+    heatLayer.addTo(map);
+  }
+
+  buildPontos();
+  if (pontosOn && !map.hasLayer(pontosLayer)) pontosLayer.addTo(map);
+
+  document.getElementById('btn-back').style.display = 'block';
+  renderUF(uf);
+  if (!panelOn) togglePanel();
+}
+
+// ── VOLTAR ──────────────────────────────────────────────────────────────
+function voltarBrasil() {
+  sel = null; selTipo = null;
+  gjLayer.setStyle(estilo);
+  map.fitBounds(BRASIL, {padding:[10,10], animate:true});
+
+  if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+  if (heatOn) { heatLayer = criarHeat(HEAT_BR, 22); heatLayer.addTo(map); }
+
+  buildPontos();
+  if (!pontosOn && map.hasLayer(pontosLayer)) map.removeLayer(pontosLayer);
+
+  document.getElementById('btn-back').style.display = 'none';
+  document.getElementById('bc2').textContent = '';
+  document.getElementById('dm').style.display = 'block';
+  document.querySelectorAll('.tp').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.tb').forEach((b,i) => b.classList.toggle('on', i===0));
+  tabAtual = 'resumo';
+  if (chartUF)  { chartUF.destroy();  chartUF  = null; }
+  if (chartReg) { chartReg.destroy(); chartReg = null; }
+}
+
+// ── TOGGLE CAMADAS ──────────────────────────────────────────────────────
+function toggleCamada(tipo) {
+  if (tipo === 'heat') {
+    heatOn = !heatOn;
+    if (heatOn) {
+      const d = sel&&selTipo==='uf' ? HEAT_UF[sel]
+              : sel&&selTipo==='reg'? HEAT_REG[sel] : HEAT_BR;
+      if (heatLayer) map.removeLayer(heatLayer);
+      heatLayer = criarHeat(d||[], sel?26:22);
+      heatLayer.addTo(map);
+    } else if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+    document.getElementById('c-heat').classList.toggle('on', heatOn);
+  } else if (tipo === 'pontos') {
+    pontosOn = !pontosOn;
+    if (pontosOn) { buildPontos(); pontosLayer.addTo(map); }
+    else map.removeLayer(pontosLayer);
+    document.getElementById('c-pontos').classList.toggle('on', pontosOn);
+  } else {
+    riosOn = !riosOn;
+    if (riosOn) riosLayer.addTo(map); else map.removeLayer(riosLayer);
+    document.getElementById('c-rios').classList.toggle('on', riosOn);
+  }
+}
+
+// ── PAINEL / TABS ────────────────────────────────────────────────────────
+function togglePanel() {
+  panelOn = !panelOn;
+  document.getElementById('panel').classList.toggle('hidden', !panelOn);
+  document.getElementById('ptoggle').textContent = panelOn ? '▶' : '◀';
+  document.getElementById('theme-btn').style.right = panelOn ? '380px' : '14px';
+  setTimeout(() => map.invalidateSize(), 320);
+}
+
+function showTab(t) {
+  tabAtual = t;
+  document.querySelectorAll('.tb').forEach((b,i) =>
+    b.classList.toggle('on', ['resumo','temporal','tipos','idh','insights'][i]===t));
+  document.querySelectorAll('.tp').forEach(p => p.classList.remove('on'));
+  document.getElementById('tp-'+t).classList.add('on');
+  document.getElementById('dm').style.display = 'none';
+  if (t === 'temporal' && sel) renderTemporal(sel);
+  if (t === 'idh')             renderIDH(sel);
+}
+
+// ── BUSCA ───────────────────────────────────────────────────────────────
+const _norm = s => s.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function buscarMunicipio(q) {
+  const box = document.getElementById('search-results');
+  if (!q || q.length < 2) { box.style.display='none'; return; }
+  const nq = _norm(q);
+  const hits = MUNIS.filter(m => _norm(m.nome).includes(nq)).slice(0, 10);
+  if (!hits.length) { box.style.display='none'; return; }
+  window._hits = hits;
+  box.innerHTML = hits.map((m,i) =>
+    `<div class="sr-item" onclick="irParaMuni(${i})">
+       ${m.nome}<span class="sr-uf">${m.uf}</span>
+     </div>`).join('');
+  box.style.display = 'block';
+}
+function irParaMuni(i) {
+  const m = window._hits[i];
+  document.getElementById('search-input').value = `${m.nome} (${m.uf})`;
+  fecharBusca();
+  if (searchMarker) map.removeLayer(searchMarker);
+  searchMarker = L.marker([m.lat, m.lon], {
+    icon: L.divIcon({ className:'search-pin-icon', iconSize:[14,14], iconAnchor:[7,7] })
+  }).addTo(map).bindTooltip(`📍 ${m.nome} (${m.uf})`, {className:'ctip', permanent:false});
+  map.setView([m.lat, m.lon], 10, {animate:true});
+  searchMarker.openTooltip();
+}
+function fecharBusca() { document.getElementById('search-results').style.display='none'; }
+
+// ── HELPERS ─────────────────────────────────────────────────────────────
+function barra(nome, val, max, cor, extra='') {
+  const pct = max>0 ? Math.round(val/max*100) : 0;
+  return `<div class="br">
+    <div class="bl"><span class="n">${nome}${extra}</span>
+      <span class="c">${val.toLocaleString('pt-BR')} (${pct}%)</span></div>
+    <div class="bb"><div class="bf" style="width:${pct}%;background:${cor}"></div></div>
+  </div>`;
+}
+function minibar(items, max, cor) {
+  return items.map(([lbl,val]) => {
+    const pct = max>0 ? Math.round(val/max*100) : 0;
+    return `<div class="mbar-row">
+      <span class="mbar-lbl" title="${lbl}">${lbl}</span>
+      <div class="mbar-bg"><div class="mbar-fill" style="width:${pct}%;background:${cor}">
+        <span class="mbar-val">${val.toLocaleString('pt-BR')}</span>
+      </div></div>
+    </div>`;
+  }).join('');
+}
+const idhCl  = v => v>=0.75?'idh-h':v>=0.65?'idh-m':'idh-l';
+const idhLbl = v => v>=0.75?'Alto':v>=0.65?'Médio':'Baixo';
+
+// ── SÉRIE TEMPORAL ────────────────────────────────────────────────────────
+function renderTemporal(uf) {
+  const s = S_UF[uf]; const cor = COR[s?.regiao]||'#3b82f6';
+  const anos = [...ANOS].sort();
+  const vals = anos.map(a => SERIE_UF[uf]?.[a]||0);
+  const seriesReg = Object.entries(SERIE_REG).map(([reg,d]) => ({
+    label:reg, data:anos.map(a=>d[a]||0),
+    borderColor:COR[reg]||'#888', backgroundColor:'transparent',
+    tension:0.4, borderWidth:2, pointRadius:3, pointHoverRadius:5,
+  }));
+
+  document.getElementById('tp-temporal').innerHTML = `
+    <div class="st">Registros anuais — ${uf}</div>
+    <div class="chart-wrap"><canvas id="chu"></canvas></div>
+    <div class="st" style="margin-top:12px">Comparativo — todas as regiões</div>
+    <div class="chart-wrap"><canvas id="chr"></canvas></div>
+    <button class="dl-btn" onclick="abrirRel('uf','${uf}')">📄 Gerar relatório</button>`;
+
+  const gridCol = isDark ? '#1e293b' : '#e2e8f0';
+  const tickCol = isDark ? '#64748b' : '#94a3b8';
+  const opts = extra => ({
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:false }, tooltip:{ callbacks:{
+      label: c=>`${c.dataset.label}: ${c.parsed.y.toLocaleString('pt-BR')}`
+    }}},
+    scales:{
+      x:{ ticks:{color:tickCol,font:{size:10}}, grid:{color:gridCol} },
+      y:{ ticks:{color:tickCol,font:{size:10}}, grid:{color:gridCol} }
+    }, ...extra
+  });
+
+  if (chartUF)  chartUF.destroy();
+  if (chartReg) chartReg.destroy();
+
+  chartUF = new Chart(document.getElementById('chu').getContext('2d'), {
+    type:'line',
+    data:{ labels:anos, datasets:[{
+      label:uf, data:vals, borderColor:cor,
+      backgroundColor:cor+'28', fill:true, tension:0.4, borderWidth:2,
+      pointRadius:4, pointBackgroundColor:cor, pointHoverRadius:6,
+    }]},
+    options: opts({})
+  });
+  chartReg = new Chart(document.getElementById('chr').getContext('2d'), {
+    type:'line',
+    data:{ labels:anos, datasets:seriesReg },
+    options: opts({ animation:{duration:700},
+      plugins:{ legend:{ display:true, labels:{color:isDark?'#94a3b8':'#475569',font:{size:10},boxWidth:10} } }})
+  });
+}
+
+// ── FILTROS POR TIPO ──────────────────────────────────────────────────────
+function setFiltroTipo(v) {
+  filtroTipo = v;
+  document.querySelectorAll('.fchip[data-ft]').forEach(c => c.classList.toggle('on', c.dataset.ft===v));
+  if (pontosOn) buildPontos();
+  if (sel) renderTipos(sel);
+}
+function setFiltroVinculo(v) {
+  filtroVinculo = v;
+  document.querySelectorAll('.fchip[data-fv]').forEach(c => c.classList.toggle('on', c.dataset.fv===v));
+  if (pontosOn) buildPontos();
+  if (sel) renderTipos(sel);
+}
+function renderTipos(uf) {
+  const s = S_UF[uf]; const tot = s.n;
+  const pf = Math.round(s.fisica/tot*100);
+  const pj = Math.round(s.juridica/tot*100);
+  const ar = Math.round(s.armador/tot*100);
+  const pr = Math.round(s.proprietario/tot*100);
+  const insight = pf>80 ? `${uf} tem perfil predominantemente artesanal — ${pf}% são Pessoa Física.`
+    : pf<50 ? `Alta presença empresarial em ${uf}: ${pj}% PJ indica pesca industrializada.`
+    : `${uf} apresenta equilíbrio entre pescadores individuais e empresas.`;
+
+  document.getElementById('tp-tipos').innerHTML = `
+    <div class="st">Tipo de pessoa</div>
+    <div class="filter-row">
+      <button class="fchip on" data-ft="todos"    onclick="setFiltroTipo('todos')">Todos</button>
+      <button class="fchip"    data-ft="fisica"   onclick="setFiltroTipo('fisica')">Pessoa Física</button>
+      <button class="fchip"    data-ft="juridica" onclick="setFiltroTipo('juridica')">Pessoa Jurídica</button>
+    </div>
+    <div class="sg">
+      <div class="sc" style="--a:#10b981"><div class="v">${s.fisica.toLocaleString('pt-BR')}</div><div class="l">Física (${pf}%)</div></div>
+      <div class="sc" style="--a:#f59e0b"><div class="v">${s.juridica.toLocaleString('pt-BR')}</div><div class="l">Jurídica (${pj}%)</div></div>
+    </div>
+    <div class="bb" style="height:8px;border-radius:4px;display:flex;overflow:hidden;margin-bottom:12px">
+      <div style="width:${pf}%;background:#10b981;transition:width .6s"></div>
+      <div style="width:${pj}%;background:#f59e0b;transition:width .6s"></div>
+    </div>
+    <div class="st">Vínculo com o RGP</div>
+    <div class="filter-row">
+      <button class="fchip on" data-fv="todos"         onclick="setFiltroVinculo('todos')">Todos</button>
+      <button class="fchip"    data-fv="Armador"       onclick="setFiltroVinculo('Armador')">Armador</button>
+      <button class="fchip"    data-fv="Proprietário"  onclick="setFiltroVinculo('Proprietário')">Proprietário</button>
+    </div>
+    <div class="sg">
+      <div class="sc" style="--a:#3b82f6"><div class="v">${s.armador.toLocaleString('pt-BR')}</div><div class="l">Armadores (${ar}%)</div></div>
+      <div class="sc" style="--a:#7c3aed"><div class="v">${s.proprietario.toLocaleString('pt-BR')}</div><div class="l">Proprietários (${pr}%)</div></div>
+    </div>
+    <div class="ins green"><span class="tg">💡 Perfil</span>${insight}</div>
+    <p style="font-size:10px;color:var(--text3);margin-top:6px">
+      Ative "⚫ Pontos" no mapa para visualizar filtrado por tipo.</p>`;
+}
+
+// ── IDH ───────────────────────────────────────────────────────────────────
+function renderIDH(uf) {
+  const s = uf ? S_UF[uf] : null;
+  const idhVal = uf ? (IDH_UF[uf]||0) : null;
+  const W=328,H=185,PL=42,PR=8,PT=10,PB=28;
+  const iw=W-PL-PR, ih=H-PT-PB;
+  const iMin=0.62, iMax=0.84;
+  const nMax=Math.max(...IDH_CORR.map(d=>d.n));
+
+  const gridLines = [0.65,0.70,0.75,0.80].map(v => {
+    const x = PL+((v-iMin)/(iMax-iMin))*iw;
+    return `<line x1="${x}" y1="${PT}" x2="${x}" y2="${PT+ih}" stroke="${isDark?'#1e293b':'#e2e8f0'}" stroke-width="1"/>
+            <text x="${x}" y="${H-4}" fill="${isDark?'#64748b':'#94a3b8'}" font-size="8" text-anchor="middle">${v}</text>`;
+  }).join('');
+
+  const dots = IDH_CORR.map(d => {
+    const x = PL+((d.idh-iMin)/(iMax-iMin))*iw;
+    const y = PT+ih-((d.n/nMax)*ih);
+    const c = COR[d.reg]||'#888';
+    const isMe = d.uf===uf;
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isMe?7:4}"
+      fill="${c}" stroke="${isMe?'#fff':'rgba(0,0,0,.4)'}" stroke-width="${isMe?2:1}" opacity="${isMe?1:0.8}">
+      <title>${d.uf}: IDH ${d.idh} · ${d.n.toLocaleString('pt-BR')} pescadores</title></circle>
+      ${isMe?`<text x="${x.toFixed(1)}" y="${(y-11).toFixed(1)}" fill="#fff" font-size="10" text-anchor="middle" font-weight="bold">${d.uf}</text>`:''}`;
+  }).join('');
+
+  document.getElementById('tp-idh').innerHTML = `
+    <div class="st">IDH × Concentração de Pescadores</div>
+    <svg id="idhC" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block">
+      ${gridLines}
+      <line x1="${PL}" y1="${PT}" x2="${PL}" y2="${PT+ih}" stroke="${isDark?'#334155':'#e2e8f0'}" stroke-width="1"/>
+      <line x1="${PL}" y1="${PT+ih}" x2="${PL+iw}" y2="${PT+ih}" stroke="${isDark?'#334155':'#e2e8f0'}" stroke-width="1"/>
+      <text x="12" y="${PT+ih/2}" fill="${isDark?'#64748b':'#94a3b8'}" font-size="8"
+        transform="rotate(-90,12,${PT+ih/2})">Pescadores</text>
+      <text x="${PL+iw/2}" y="${H}" fill="${isDark?'#64748b':'#94a3b8'}" font-size="8" text-anchor="middle">IDH (2010)</text>
+      <line x1="${PL}" y1="${PT+ih*.35}" x2="${PL+iw}" y2="${PT+ih*.45}"
+        stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>
+      ${dots}
+    </svg>
+    <div class="ins blue" style="margin-top:6px">
+      <span class="tg">📊 Pearson: ${PEARSON}</span>
+      ${Math.abs(PEARSON)<0.2?'Correlação fraca — IDH explica pouco a concentração de pescadores.'
+       :PEARSON<0?`Correlação negativa — estados com menor IDH tendem a ter mais pescadores (pesca como subsistência).`
+       :`Correlação positiva — estados com maior IDH também concentram mais armadores.`}
+    </div>
+    ${uf?`<div class="ins"><span class="tg">📍 ${uf}</span>
+      IDH: <span class="${idhCl(idhVal)}">${idhVal} · ${idhLbl(idhVal)}</span>
+      &nbsp;·&nbsp; ${s.n.toLocaleString('pt-BR')} pescadores (${s.pct_br}% do Brasil)
+    </div>`:''}
+    <p style="font-size:10px;color:var(--text3);margin-top:8px">
+      Fonte IDH: Atlas PNUD 2010. Passe o mouse sobre os pontos para ver cada estado.</p>`;
+}
+
+// ── RELATÓRIO ─────────────────────────────────────────────────────────────
+function gerarRel(tipo, id) {
+  const dt = new Date().toLocaleString('pt-BR');
+  const S = '─'.repeat(52);
+  const L = ['='.repeat(52)];
+  if (tipo==='uf') {
+    const s=S_UF[id]; const idh=IDH_UF[id]||0;
+    L.push(`  RELATÓRIO — ESTADO: ${id} (${s.regiao})`,'='.repeat(52),'',
+      `Gerado em: ${dt}`,'Fonte: MPA/SERMOP | INF01047 UFRGS','',
+      S,'  NÚMEROS',S,
+      `Pescadores      : ${s.n.toLocaleString('pt-BR')}`,
+      `% Brasil        : ${s.pct_br}%`,
+      `% Região        : ${s.pct_reg}%`,
+      `Total na região : ${s.n_reg.toLocaleString('pt-BR')}`,
+      `Municípios      : ${s.n_munis}`,
+      `Concentração    : ${s.conc}% no maior município`,
+      `IDH (2010)      : ${idh} — ${idhLbl(idh)}`,
+      `Pessoa Física   : ${s.fisica.toLocaleString('pt-BR')} (${Math.round(s.fisica/s.n*100)}%)`,
+      `Pessoa Jurídica : ${s.juridica.toLocaleString('pt-BR')} (${Math.round(s.juridica/s.n*100)}%)`,
+      `Armadores       : ${s.armador.toLocaleString('pt-BR')}`,
+      `Proprietários   : ${s.proprietario.toLocaleString('pt-BR')}`,
+      '',S,'  SÉRIE TEMPORAL',S,
+      ...ANOS.map(a=>`  ${a}: ${(SERIE_UF[id]?.[a]||0).toLocaleString('pt-BR')} registros`),
+      '',S,'  TOP 5 MUNICÍPIOS',S,
+      ...s.tops.map(([m,v],i)=>`  ${i+1}. ${m}: ${v.toLocaleString('pt-BR')} (${Math.round(v/s.n*100)}%)`),
+      '',S,'  ANÁLISE',S,
+      CONC.insights_uf[id]||`${id} representa ${s.pct_br}% dos pescadores.`,
+      '',S,'  CONTEXTO REGIONAL',S,
+      CONC.insights_reg[s.regiao]||'');
+  } else {
+    const s=S_REG[id];
+    L.push(`  RELATÓRIO — REGIÃO: ${id}`,'='.repeat(52),'',
+      `Gerado em: ${dt}`,'Fonte: MPA/SERMOP | INF01047 UFRGS','',
+      S,'  NÚMEROS',S,
+      `Pescadores  : ${s.n.toLocaleString('pt-BR')}`,
+      `% Brasil    : ${s.pct_br}%`,
+      `Estados     : ${s.n_ufs}`,
+      `Líder       : ${s.top_ufs[0]?.[0]} (${s.lider_pct}%)`,
+      `PF          : ${s.fisica?.toLocaleString('pt-BR')||'—'} (${Math.round((s.fisica||0)/s.n*100)}%)`,
+      `PJ          : ${s.juridica?.toLocaleString('pt-BR')||'—'}`,
+      '',S,'  ESTADOS',S,
+      ...s.top_ufs.map(([e,v],i)=>`  ${i+1}. ${e}: ${v.toLocaleString('pt-BR')} (${Math.round(v/s.n*100)}%)`),
+      '',S,'  SÉRIE TEMPORAL',S,
+      ...ANOS.map(a=>`  ${a}: ${(SERIE_REG[id]?.[a]||0).toLocaleString('pt-BR')}`),
+      '',S,'  ANÁLISE',S,
+      CONC.insights_reg[id]||'');
+  }
+  L.push('',S,'  CONCLUSÕES GERAIS',S,
+    ...CONC.geral.map((c,i)=>`${i+1}. ${c}`),'','='.repeat(52));
+  return L.join('\n');
+}
+
+function abrirRel(tipo, id) {
+  relTitulo = tipo==='uf' ? `Estado ${id}` : `Região ${id}`;
+  relTxt = gerarRel(tipo, id);
+  document.getElementById('rel-titulo').textContent = `📄 Relatório — ${relTitulo}`;
+  document.getElementById('rel-sub').textContent = `Gerado em ${new Date().toLocaleString('pt-BR')}`;
+  document.getElementById('rel-txt').textContent  = relTxt;
+  document.getElementById('rel-ov').classList.add('show');
+}
+function fecharRel() { document.getElementById('rel-ov').classList.remove('show'); }
+function baixarRel(fmt) {
+  if (fmt==='pdf') { gerarPDF(); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([relTxt],{type:'text/plain;charset=utf-8'}));
+  a.download = `relatorio_pesca_${relTitulo.replace(/[^a-zA-Z0-9]/g,'_')}.txt`;
+  a.click();
+}
+function copiarRel() {
+  navigator.clipboard.writeText(relTxt).then(() => {
+    const b = document.querySelector('.rbtn.cp');
+    b.textContent = '✅ Copiado!';
+    setTimeout(() => b.textContent = '📋 Copiar', 2000);
+  });
+}
+
+function gerarPDF() {
+  const id  = relTitulo.replace(/Estado |Região /,'');
+  const isUF= relTitulo.startsWith('Estado');
+  const s   = isUF ? S_UF[id] : S_REG[id];
+  const cor = isUF ? (COR[s?.regiao]||'#3b82f6') : (COR[id]||'#3b82f6');
+  const idh = isUF ? IDH_UF[id] : null;
+  const serie = isUF ? SERIE_UF[id] : SERIE_REG[id];
+  const serieTR = ANOS.map(a=>`<tr><td>${a}</td><td>${(serie?.[a]||0).toLocaleString('pt-BR')}</td></tr>`).join('');
+  const topsTR  = isUF
+    ? s.tops.map(([m,v],i)=>`<tr><td>${i+1}. ${m}</td><td>${v.toLocaleString('pt-BR')}</td><td>${Math.round(v/s.n*100)}%</td></tr>`).join('')
+    : s.top_muns.map(([m,v],i)=>`<tr><td>${i+1}. ${m}</td><td>${v.toLocaleString('pt-BR')}</td></tr>`).join('');
+
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>Relatório ${relTitulo}</title>
+  <style>
+    body{font-family:'Segoe UI',sans-serif;margin:36px;color:#0f172a;font-size:13px;line-height:1.6}
+    h1{color:${cor};font-size:22px;border-bottom:3px solid ${cor};padding-bottom:10px;margin-bottom:18px}
+    h2{color:#1e293b;font-size:13px;font-weight:700;margin:20px 0 8px;text-transform:uppercase;
+       letter-spacing:1px;border-left:3px solid ${cor};padding-left:10px}
+    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+    .kpi{background:#f8fafc;border-radius:8px;padding:12px;border-left:3px solid ${cor}}
+    .kpi .v{font-size:22px;font-weight:700;color:${cor}}.kpi .l{font-size:11px;color:#64748b;margin-top:2px}
+    table{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:12px}
+    th{background:#f1f5f9;padding:7px 12px;text-align:left;color:#475569;font-weight:600}
+    td{padding:5px 12px;border-bottom:1px solid #e2e8f0}
+    .ins{background:#fff7ed;border-left:3px solid #f59e0b;padding:9px 13px;border-radius:0 8px 8px 0;margin:8px 0;font-size:12px}
+    .footer{margin-top:28px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8}
+    @media print{body{margin:18px}@page{margin:18mm}}
+  </style></head><body>
+  <h1>🐟 Relatório — ${relTitulo}</h1>
+  <p style="color:#64748b;font-size:11px">Gerado em ${new Date().toLocaleString('pt-BR')} · Fonte: MPA/SERMOP · INF01047 UFRGS</p>
+  <h2>Números</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="v">${s.n.toLocaleString('pt-BR')}</div><div class="l">Pescadores</div></div>
+    <div class="kpi"><div class="v">${s.pct_br}%</div><div class="l">do total nacional</div></div>
+    ${isUF?`<div class="kpi"><div class="v">${idh}</div><div class="l">IDH PNUD 2010</div></div>`
+          :`<div class="kpi"><div class="v">${s.n_ufs}</div><div class="l">Estados</div></div>`}
+  </div>
+  ${isUF?`<div class="kpis">
+    <div class="kpi"><div class="v">${s.fisica.toLocaleString('pt-BR')}</div><div class="l">Pessoa Física</div></div>
+    <div class="kpi"><div class="v">${s.juridica.toLocaleString('pt-BR')}</div><div class="l">Pessoa Jurídica</div></div>
+    <div class="kpi"><div class="v">${s.conc}%</div><div class="l">Concentração líder</div></div>
+  </div>`:''}
+  <h2>Série Temporal</h2>
+  <table><tr><th>Ano</th><th>Registros</th></tr>${serieTR}</table>
+  <h2>Top Municípios</h2>
+  <table><tr><th>Município</th><th>Registros</th>${isUF?'<th>%</th>':''}</tr>${topsTR}</table>
+  <h2>Análise</h2>
+  <div class="ins">${isUF?(CONC.insights_uf[id]||''):(CONC.insights_reg[id]||'')}</div>
+  <div class="ins">${isUF?CONC.insights_reg[s.regiao]||'':''}</div>
+  <h2>Conclusões Gerais</h2>
+  <ol style="line-height:1.9;font-size:12px;color:#334155;padding-left:18px">
+    ${CONC.geral.map(c=>`<li>${c}</li>`).join('')}
+  </ol>
+  <div class="footer">Armadores de Pesca no Brasil · INF01047 UFRGS · MPA/SERMOP</div>
+  </body></html>`);
+  w.document.close();
+  setTimeout(() => w.print(), 600);
+}
+
+// ── RENDERIZAR PAINEL ─────────────────────────────────────────────────────
+function renderUF(uf) {
+  const s = S_UF[uf]; if (!s) return;
+  const cor = COR[s.regiao] || '#3b82f6';
+  const idh = IDH_UF[uf] || 0;
+  document.getElementById('bc2').innerHTML =
+    ` › <span class="bcl" style="color:${cor};font-weight:700">${uf}</span>`;
+  const maxMun = s.tops[0]?.[1] || 1;
+
+  // RESUMO
+  document.getElementById('tp-resumo').innerHTML = `
+    <div class="sg">
+      <div class="sc" style="--a:${cor}"><div class="v">${s.n.toLocaleString('pt-BR')}</div><div class="l">Pescadores no estado</div></div>
+      <div class="sc" style="--a:#f59e0b"><div class="v">${s.pct_br}%</div><div class="l">do total nacional</div></div>
+      <div class="sc" style="--a:#10b981"><div class="v">${s.pct_reg}%</div><div class="l">da região</div></div>
+      <div class="sc" style="--a:${idh>=0.75?'#10b981':idh>=0.65?'#f59e0b':'#ef4444'}">
+        <div class="v ${idhCl(idh)}">${idh}</div><div class="l">IDH (${idhLbl(idh)})</div></div>
+    </div>
+    <div class="st">Região</div>
+    <div style="margin-bottom:10px;font-size:12px">
+      <span class="rb" style="background:${cor}">${s.regiao}</span>
+      <span style="color:var(--text2)"> — ${s.n_reg.toLocaleString('pt-BR')} pescadores</span>
+    </div>
+    <div class="st">Top municípios</div>
+    ${minibar(s.tops, maxMun, cor)}
+    <button class="dl-btn" onclick="abrirRel('uf','${uf}')">📄 Gerar relatório completo</button>`;
+
+  // TEMPORAL — placeholder, renderizado ao clicar na aba
+  document.getElementById('tp-temporal').innerHTML =
+    `<p style="color:var(--text3);font-size:12px;padding:20px 0;text-align:center">
+       Clique na aba 📅 Temporal para carregar a série histórica.</p>`;
+
+  // TIPOS
+  renderTipos(uf);
+
+  // IDH
+  renderIDH(uf);
+
+  // INSIGHTS + RANKING
+  const reg = S_REG[s.regiao]; const maxUF = reg.top_ufs[0]?.[1]||1;
+  const rankRows = reg.top_ufs.map(([e,v]) => {
+    const cur = e===uf;
+    return `<div class="br" style="${cur?'background:var(--ins-bg);border-radius:6px;padding:4px 8px;margin:-4px -8px 5px;':''}">
+      <div class="bl">
+        <span class="n" style="${cur?`color:var(--accent2);font-weight:700`:''}">${cur?'▶ ':''}${e}</span>
+        <span class="c">${v.toLocaleString('pt-BR')}</span>
+      </div>
+      <div class="bb"><div class="bf" style="width:${Math.round(v/maxUF*100)}%;background:${cur?'var(--accent)':cor}"></div></div>
+    </div>`;
+  }).join('');
+  const allRegs = Object.entries(S_REG).sort((a,b)=>b[1].n-a[1].n);
+  const maxReg  = allRegs[0][1].n;
+  const ins = CONC.insights_uf[uf] || `${uf} representa ${s.pct_br}% dos pescadores nacionais.`;
+
+  document.getElementById('tp-insights').innerHTML = `
+    <div class="ins"><span class="tg">📍 ${uf} — análise</span>${ins}</div>
+    <div class="ins blue"><span class="tg">🌎 Região ${s.regiao}</span>${CONC.insights_reg[s.regiao]||''}</div>
+    <div class="ins green"><span class="tg">📊 Dado-chave</span>
+      ${s.tops[0]?.[0]} é o polo principal com ${(s.tops[0]?.[1]||0).toLocaleString('pt-BR')} registros (${s.conc}%).
+      ${s.tops[1]?` O 2º polo — ${s.tops[1][0]} — tem ${Math.round(s.tops[1][1]/s.tops[0][1]*100)}% do volume do líder.`:''}
+    </div>
+    <div class="ins" style="border-left-color:${idh>=0.75?'#10b981':idh>=0.65?'#f59e0b':'#ef4444'}">
+      <span class="tg">🏥 IDH vs Pesca</span>
+      IDH <span class="${idhCl(idh)}">${idh} (${idhLbl(idh)})</span> · Correlação nacional: Pearson = ${PEARSON}.
+      ${PEARSON < -0.1 ? ' Estados com menor IDH tendem a concentrar mais pescadores.' : ''}
+    </div>
+    <div class="st" style="margin-top:12px">Ranking — Região ${s.regiao}</div>
+    ${rankRows}
+    <div class="st" style="margin-top:12px">Posição nacional</div>
+    ${barra(uf+' no Brasil', s.n, TOTAL, cor)}
+    <div class="st" style="margin-top:12px">Comparativo de regiões</div>
+    ${allRegs.map(([r,rs])=>barra(r,rs.n,maxReg,r===s.regiao?'#f59e0b':COR[r],
+      r===s.regiao?' <span style="font-size:9px;color:#f59e0b">(sua região)</span>':'')).join('')}
+    <button class="dl-btn" onclick="abrirRel('uf','${uf}')">📄 Gerar relatório completo</button>`;
+
+  document.getElementById('dm').style.display = 'none';
+  showTab(tabAtual==='temporal'?'temporal':'resumo');
+  if (tabAtual==='temporal') renderTemporal(uf);
+}
+
+// ── INICIALIZAÇÃO ──────────────────────────────────────────────────────────
+document.getElementById('conc-gerais').innerHTML =
+  CONC.geral.map((c,i) =>
+    `<div class="ins ${['','red','blue','green','purple'][i%5]}" style="margin-bottom:5px;text-align:left">
+       <span class="tg">${i+1}ª conclusão</span>${c}</div>`
+  ).join('');
+
+renderIDH(null);
+map.fitBounds(BRASIL, {padding:[10,10]});
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</body>
+</html>
