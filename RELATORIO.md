@@ -43,7 +43,8 @@ A visualização principal é **interativa** — arquivo `mapa.html`.
 
 ### Conclusão demonstrada pela visualização
 
-<mark>`O mapa e os gráficos ajudam a perceber três coisas principais sobre a pesca no Brasil:
+<mark>`
+    O mapa e os gráficos ajudam a perceber três coisas principais sobre a pesca no Brasil:
 
     A pesca está muito concentrada: O mapa de calor mostra que os donos de barcos não estão espalhados por igual. Existem "linhas" e manchas muito fortes de atividade na Região Norte (principalmente à volta dos rios do Pará e do Amazonas) e em pontos específicos do litoral Sul e Sudeste. Isto prova que a pesca comercial depende de polos e portos muito específicos.
 
