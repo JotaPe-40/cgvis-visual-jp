@@ -535,10 +535,16 @@ const bgRect = L.rectangle([[-90,-180],[90,180]], {
 
 // ── HEATMAP ─────────────────────────────────────────────────────────────
 // FIX: criar heatLayer no pane correto, APÓS mapa pronto
+// Pane customizado z=380, abaixo dos poligonos SVG (overlayPane=400)
+map.createPane('heatPane');
+map.getPane('heatPane').style.zIndex = 450;
+map.getPane('heatPane').style.pointerEvents = 'none';
+
 const HOPTS = {
+  pane: 'heatPane',
   radius:22, blur:18, maxZoom:13, max:1.0,
   gradient:{0:'#0000ff',0.2:'#00ccff',0.4:'#00ff88',0.6:'#ffff00',0.8:'#ff8800',1:'#f00'},
-  minOpacity:0.4,
+  minOpacity:0.45,
 };
 let heatLayer = null;
 
@@ -584,7 +590,7 @@ function estilo(f) {
   // FIX isolamento: estados não selecionados ficam com fillOpacity:0 (invisíveis)
   // E uma cor de stroke escura para mostrar a borda do Brasil
   if (cor === null) {
-    return { fillColor:'#0f172a', color:'#1e293b', weight:0.5, fillOpacity:0.97 };
+    return { fillColor:'#0f172a', color:'#0f172a', weight:0, fillOpacity:0 };
   }
   return {
     fillColor: cor,
@@ -665,6 +671,7 @@ function selecionarUF(uf) {
   if (heatOn) {
     heatLayer = criarHeat(HEAT_UF[uf] || [], 26);
     heatLayer.addTo(map);
+    setTimeout(() => map.fire('moveend'), 50);
   }
 
   buildPontos();
@@ -682,7 +689,7 @@ function voltarBrasil() {
   map.fitBounds(BRASIL, {padding:[10,10], animate:true});
 
   if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
-  if (heatOn) { heatLayer = criarHeat(HEAT_BR, 22); heatLayer.addTo(map); }
+  if (heatOn) { heatLayer = criarHeat(HEAT_BR, 22); heatLayer.addTo(map); setTimeout(() => map.fire('moveend'), 50); }
 
   buildPontos();
   if (!pontosOn && map.hasLayer(pontosLayer)) map.removeLayer(pontosLayer);
@@ -707,6 +714,7 @@ function toggleCamada(tipo) {
       if (heatLayer) map.removeLayer(heatLayer);
       heatLayer = criarHeat(d||[], sel?26:22);
       heatLayer.addTo(map);
+      setTimeout(() => map.fire('moveend'), 50);
     } else if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
     document.getElementById('c-heat').classList.toggle('on', heatOn);
   } else if (tipo === 'pontos') {
@@ -951,53 +959,94 @@ function renderIDH(uf) {
 
 // ── RELATÓRIO ─────────────────────────────────────────────────────────────
 function gerarRel(tipo, id) {
-  const dt = new Date().toLocaleString('pt-BR');
-  const S = '─'.repeat(52);
-  const L = ['='.repeat(52)];
-  if (tipo==='uf') {
-    const s=S_UF[id]; const idh=IDH_UF[id]||0;
-    L.push(`  RELATÓRIO — ESTADO: ${id} (${s.regiao})`,'='.repeat(52),'',
-      `Gerado em: ${dt}`,'Fonte: MPA/SERMOP | INF01047 UFRGS','',
-      S,'  NÚMEROS',S,
-      `Pescadores      : ${s.n.toLocaleString('pt-BR')}`,
-      `% Brasil        : ${s.pct_br}%`,
-      `% Região        : ${s.pct_reg}%`,
-      `Total na região : ${s.n_reg.toLocaleString('pt-BR')}`,
-      `Municípios      : ${s.n_munis}`,
-      `Concentração    : ${s.conc}% no maior município`,
-      `IDH (2010)      : ${idh} — ${idhLbl(idh)}`,
-      `Pessoa Física   : ${s.fisica.toLocaleString('pt-BR')} (${Math.round(s.fisica/s.n*100)}%)`,
-      `Pessoa Jurídica : ${s.juridica.toLocaleString('pt-BR')} (${Math.round(s.juridica/s.n*100)}%)`,
-      `Armadores       : ${s.armador.toLocaleString('pt-BR')}`,
-      `Proprietários   : ${s.proprietario.toLocaleString('pt-BR')}`,
-      '',S,'  SÉRIE TEMPORAL',S,
-      ...ANOS.map(a=>`  ${a}: ${(SERIE_UF[id]?.[a]||0).toLocaleString('pt-BR')} registros`),
-      '',S,'  TOP 5 MUNICÍPIOS',S,
-      ...s.tops.map(([m,v],i)=>`  ${i+1}. ${m}: ${v.toLocaleString('pt-BR')} (${Math.round(v/s.n*100)}%)`),
-      '',S,'  ANÁLISE',S,
-      CONC.insights_uf[id]||`${id} representa ${s.pct_br}% dos pescadores.`,
-      '',S,'  CONTEXTO REGIONAL',S,
-      CONC.insights_reg[s.regiao]||'');
+  const dt  = new Date().toLocaleString('pt-BR');
+  const SEP = '─'.repeat(52);
+  const EQ  = '='.repeat(52);
+  const meta = CONC._meta || {};
+  const L = [EQ];
+
+  if (tipo === 'uf') {
+    const s   = S_UF[id];
+    const idh = IDH_UF[id] || 0;
+    const idhLbl = idh >= 0.75 ? 'Alto' : idh >= 0.65 ? 'Médio' : 'Baixo';
+    const pfPct  = Math.round(s.fisica / s.n * 100);
+    const pjPct  = Math.round(s.juridica / s.n * 100);
+    const arPct  = Math.round(s.armador / s.n * 100);
+    const serie  = SERIE_UF[id] || {};
+    const anos   = [...ANOS].sort();
+
+    L.push(
+      `  RELATÓRIO — ESTADO: ${id} (${s.regiao})`, EQ, '',
+      `Gerado em  : ${dt}`,
+      `Fonte      : MPA/SERMOP | INF01047 UFRGS`,
+      `Análise    : gerada automaticamente dos dados reais`, '',
+      SEP, '  NÚMEROS GERAIS', SEP,
+      `Pescadores registrados : ${s.n.toLocaleString('pt-BR')}`,
+      `% do total nacional    : ${s.pct_br}%`,
+      `% da Região ${s.regiao.padEnd(10)}: ${s.pct_reg}%`,
+      `Total na região        : ${s.n_reg.toLocaleString('pt-BR')}`,
+      `Municípios presentes   : ${s.n_munis}`,
+      `Maior concentração     : ${s.conc}% no polo principal`, '',
+      SEP, '  IDH E PERFIL', SEP,
+      `IDH estadual (2010)    : ${idh} — ${idhLbl}`,
+      `Correlação IDH×pesca   : ${meta.idh_corr_txt || PEARSON}`,
+      `Pessoa Física          : ${s.fisica.toLocaleString('pt-BR')} (${pfPct}%)`,
+      `Pessoa Jurídica        : ${s.juridica.toLocaleString('pt-BR')} (${pjPct}%)`,
+      `Armadores de pesca     : ${s.armador.toLocaleString('pt-BR')} (${arPct}%)`,
+      `Proprietários emb.     : ${s.proprietario.toLocaleString('pt-BR')} (${100-arPct}%)`, '',
+      SEP, '  SÉRIE TEMPORAL', SEP,
+      ...anos.map(a => `  ${a} : ${(serie[a]||0).toLocaleString('pt-BR').padStart(6)} registros`), '',
+      SEP, '  TOP 5 MUNICÍPIOS', SEP,
+      ...s.tops.map(([m,v],i) =>
+        `  ${(i+1)}. ${m.padEnd(26)}: ${v.toLocaleString('pt-BR').padStart(5)} (${Math.round(v/s.n*100)}%)`),
+      '', SEP, '  ANÁLISE DO ESTADO (gerada dos dados)', SEP,
+      CONC.insights_uf[id] || `${id} representa ${s.pct_br}% dos pescadores nacionais.`,
+      '', SEP, '  CONTEXTO REGIONAL (gerado dos dados)', SEP,
+      CONC.insights_reg[s.regiao] || ''
+    );
+
   } else {
-    const s=S_REG[id];
-    L.push(`  RELATÓRIO — REGIÃO: ${id}`,'='.repeat(52),'',
-      `Gerado em: ${dt}`,'Fonte: MPA/SERMOP | INF01047 UFRGS','',
-      S,'  NÚMEROS',S,
-      `Pescadores  : ${s.n.toLocaleString('pt-BR')}`,
-      `% Brasil    : ${s.pct_br}%`,
-      `Estados     : ${s.n_ufs}`,
-      `Líder       : ${s.top_ufs[0]?.[0]} (${s.lider_pct}%)`,
-      `PF          : ${s.fisica?.toLocaleString('pt-BR')||'—'} (${Math.round((s.fisica||0)/s.n*100)}%)`,
-      `PJ          : ${s.juridica?.toLocaleString('pt-BR')||'—'}`,
-      '',S,'  ESTADOS',S,
-      ...s.top_ufs.map(([e,v],i)=>`  ${i+1}. ${e}: ${v.toLocaleString('pt-BR')} (${Math.round(v/s.n*100)}%)`),
-      '',S,'  SÉRIE TEMPORAL',S,
-      ...ANOS.map(a=>`  ${a}: ${(SERIE_REG[id]?.[a]||0).toLocaleString('pt-BR')}`),
-      '',S,'  ANÁLISE',S,
-      CONC.insights_reg[id]||'');
+    const s    = S_REG[id];
+    const serie = SERIE_REG[id] || {};
+    const anos  = [...ANOS].sort();
+    const pfPct = Math.round((s.fisica||0) / s.n * 100);
+
+    L.push(
+      `  RELATÓRIO — REGIÃO: ${id}`, EQ, '',
+      `Gerado em  : ${dt}`,
+      `Fonte      : MPA/SERMOP | INF01047 UFRGS`,
+      `Análise    : gerada automaticamente dos dados reais`, '',
+      SEP, '  NÚMEROS GERAIS', SEP,
+      `Pescadores registrados : ${s.n.toLocaleString('pt-BR')}`,
+      `% do total nacional    : ${s.pct_br}%`,
+      `Nº de estados / UFs    : ${s.n_ufs}`,
+      `Estado líder           : ${s.top_ufs[0]?.[0]} (${s.lider_pct}% da região)`,
+      `Desigualdade interna   : CV=${s.desigualdade}%`,
+      `Pessoa Física          : ${(s.fisica||0).toLocaleString('pt-BR')} (${pfPct}%)`,
+      `Pessoa Jurídica        : ${(s.juridica||0).toLocaleString('pt-BR')} (${100-pfPct}%)`, '',
+      SEP, '  ESTADOS DA REGIÃO', SEP,
+      ...s.top_ufs.map(([e,v],i) =>
+        `  ${(i+1)}. ${e.padEnd(4)}: ${v.toLocaleString('pt-BR').padStart(6)} (${Math.round(v/s.n*100)}%)`),
+      '', SEP, '  TOP 5 MUNICÍPIOS', SEP,
+      ...s.top_muns.map(([m,v],i) =>
+        `  ${(i+1)}. ${m.padEnd(26)}: ${v.toLocaleString('pt-BR').padStart(5)}`),
+      '', SEP, '  SÉRIE TEMPORAL', SEP,
+      ...anos.map(a => `  ${a} : ${(serie[a]||0).toLocaleString('pt-BR').padStart(6)} registros`),
+      '', SEP, '  ANÁLISE REGIONAL (gerada dos dados)', SEP,
+      CONC.insights_reg[id] || ''
+    );
   }
-  L.push('',S,'  CONCLUSÕES GERAIS',S,
-    ...CONC.geral.map((c,i)=>`${i+1}. ${c}`),'','='.repeat(52));
+
+  // Conclusões gerais — todas geradas automaticamente pelo Python
+  L.push(
+    '', SEP, '  CONCLUSÕES GERAIS DO BRASIL (geradas dos dados)', SEP,
+    ...CONC.geral.map((c, i) => `${i+1}. ${c}`),
+    '', SEP,
+    `  Gini de concentração: ${meta.gini || '—'}`,
+    `  Tendência temporal  : ${meta.trend_txt || '—'}`,
+    `  Pearson IDH×pesca   : ${meta.pearson || PEARSON}`,
+    EQ
+  );
   return L.join('\n');
 }
 

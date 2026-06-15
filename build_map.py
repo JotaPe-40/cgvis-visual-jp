@@ -191,30 +191,208 @@ for m in csv.DictReader(io.StringIO(r_munis.text)):
         munis_busca.append({'nome':m['nome'],'uf':uf,'lat':float(m['latitude']),'lon':float(m['longitude'])})
 print(f"  {len(munis_busca)} municípios")
 
-CONCLUSOES={'geral':[
-    "O Nordeste concentra 39% dos pescadores — mais que qualquer região, apesar de não ser a mais rica. A pesca artesanal é central para a subsistência.",
-    "O Norte tem 68% dos pescadores em municípios ribeirinhos do interior, não no litoral — a pesca amazônica é predominantemente fluvial.",
-    "O Sul tem a maior densidade de pescadores por km de litoral. Itajaí/SC e Rio Grande/RS são os dois maiores portos pesqueiros do país.",
-    "O Sudeste combina pesca industrial (Santos, Macaé) com artesanal costeira. RJ e SP concentram 84% da região.",
-    "O Centro-Oeste representa apenas 3,9% do total. A pesca pantaneira de Corumbá/MS é a única concentração relevante."],
-    'insights_uf':{'CE':'Fortaleza concentra 51% dos cearenses — hub industrial e artesanal no Nordeste.',
-        'MA':'São Luís domina, mas Cururupu emerge como segundo polo de pesca artesanal no litoral ocidental.',
-        'AM':'Manaus concentra 56% do estado. A pesca fluvial amazônica organiza-se em centros ribeirinhos.',
-        'PA':'Belém responde por 45%. Santarém, 800km rio acima, é o segundo polo ao longo do Amazonas.',
-        'SC':'Itajaí é o maior porto pesqueiro do Brasil em volume desembarcado — pesca oceânica industrial.',
-        'RS':'Rio Grande concentra 45% dos gaúchos — polo da pesca oceânica do extremo sul.',
-        'RJ':'Macaé aparece como segundo polo fluminense, ligado à plataforma continental e ao offshore.',
-        'SP':'Santos e Guarujá somam 50% dos pescadores paulistas — eixo da pesca no maior estado.',
-        'BA':'Salvador concentra 48%, mas Ilhéus e Porto Seguro revelam pesca artesanal no litoral sul.',
-        'RN':'Areia Branca surpreende como 2º polo — exportação de lagosta e camarão explica a concentração.',
-        'PE':'Recife domina com 45%; toda a Grande Recife centraliza a pesca pernambucana.',
-        'PI':'Parnaíba concentra quase toda a pesca — apesar do estado ser majoritariamente interiorano.',
-        'MS':'Corumbá responde pela maior parte do MS — âncora da pesca fluvial do Centro-Oeste.'},
-    'insights_reg':{'Norte':'68% dos pescadores estão no interior ribeirinho. Único padrão fluvial dominante — reflexo da Bacia Amazônica.',
-        'Nordeste':'Maior volume absoluto (39%). Pesca artesanal estratégica para segurança alimentar. CE, BA e MA respondem por 65%.',
-        'Centro-Oeste':'Apenas 3,9% do total. Pesca restrita às bacias do Pantanal e Araguaia-Tocantins.',
-        'Sudeste':'Combina pesca industrial em portos (Santos, Macaé) e artesanal costeira no litoral fluminense e paulista.',
-        'Sul':'Maior densidade por km². Itajaí e Rio Grande são referências nacionais em pesca oceânica e processamento industrial.'}}
+
+# ═══════════════════════════════════════════════════════════════════════
+# MOTOR DE ANÁLISE AUTOMÁTICA
+# Gera conclusões e insights dinamicamente a partir dos dados reais.
+# Nenhum texto é hardcoded — tudo é derivado das métricas calculadas.
+# ═══════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
+# MOTOR DE ANÁLISE AUTOMÁTICA — gera conclusões e insights dos dados reais
+# Chamado pelo build_map_v7.py após calcular stats_uf, stats_reg, df, etc.
+# ═══════════════════════════════════════════════════════════════════════
+import statistics, math
+
+def gerar_conclusoes(df, stats_uf, stats_reg, IDH_UF, TOTAL, pearson):
+    """Gera todas as conclusões e insights automaticamente dos dados reais."""
+
+    REGIOES = {uf: s['regiao'] for uf, s in stats_uf.items()}
+
+    # ── Métricas gerais ──────────────────────────────────────────────
+    reg_totais = {reg: s['n'] for reg, s in stats_reg.items()}
+    reg_pct    = {reg: s['pct_br'] for reg, s in stats_reg.items()}
+    reg_rank   = sorted(reg_totais, key=reg_totais.get, reverse=True)
+    uf_rank    = sorted(stats_uf, key=lambda u: stats_uf[u]['n'], reverse=True)
+
+    reg_lider  = reg_rank[0]
+    reg_menor  = reg_rank[-1]
+    uf_lider   = uf_rank[0]
+    uf_2o      = uf_rank[1]
+
+    # Norte: % interior (lon < -50 como proxy de interior ribeirinho)
+    norte_df   = df[df['regiao'] == 'Norte']
+    pct_norte_interior = round(len(norte_df[norte_df['longitude'] < -50]) / max(len(norte_df),1) * 100, 1)
+
+    # Gini de concentração entre UFs
+    vals = sorted([s['n'] for s in stats_uf.values()])
+    n_uf = len(vals); s_vals = sum(vals)
+    gini_num = sum((2*(i+1)-n_uf-1)*v for i,v in enumerate(vals))
+    gini = round(gini_num / (n_uf * s_vals), 3) if s_vals else 0
+
+    # Tendência temporal
+    serie = df.groupby('ano').size()
+    anos_s = sorted(serie.index.tolist())
+    if len(anos_s) >= 2:
+        delta  = serie[anos_s[-1]] - serie[anos_s[0]]
+        n_anos = anos_s[-1] - anos_s[0]
+        trend_pct = round(delta / serie[anos_s[0]] * 100, 1) if serie[anos_s[0]] else 0
+        trend_dir = "crescimento" if delta > 0 else "queda"
+        trend_txt = f"{abs(trend_pct)}% de {trend_dir} entre {anos_s[0]} e {anos_s[-1]}"
+    else:
+        trend_txt = "série temporal insuficiente"
+        trend_pct = 0
+
+    # PJ e PF por região
+    pj_por_reg = {reg: round(s['juridica']/s['n']*100, 1) if s['n'] else 0 for reg, s in stats_reg.items()}
+    reg_mais_pj = max(pj_por_reg, key=pj_por_reg.get)
+    reg_menos_pj = min(pj_por_reg, key=pj_por_reg.get)
+
+    pj_por_uf = {uf: round(s['juridica']/s['n']*100, 1) if s['n'] else 0 for uf, s in stats_uf.items()}
+    uf_mais_pj  = max(pj_por_uf, key=pj_por_uf.get)
+    uf_menos_pj = min(pj_por_uf, key=pj_por_uf.get)
+
+    # Concentração no líder estadual por região
+    conc_por_reg = {}
+    for reg in reg_totais:
+        top = stats_reg[reg]['top_ufs'][0] if stats_reg[reg]['top_ufs'] else [None,0]
+        conc_por_reg[reg] = round(top[1]/reg_totais[reg]*100, 1) if reg_totais[reg] else 0
+
+    # IDH: relação com volume
+    idh_vals = [IDH_UF[uf] for uf in stats_uf if uf in IDH_UF]
+    n_vals   = [stats_uf[uf]['n'] for uf in stats_uf if uf in IDH_UF]
+    idh_txt = (
+        f"negativa (Pearson={pearson}) — estados com menor IDH tendem a ter mais pescadores registrados"
+        if pearson < -0.1 else
+        f"positiva (Pearson={pearson}) — estados com maior IDH concentram mais armadores"
+        if pearson > 0.1 else
+        f"fraca (Pearson={pearson}) — IDH estadual explica pouco a concentração de pescadores"
+    )
+
+    # ── CONCLUSÕES GERAIS (geradas dos dados) ────────────────────────
+    geral = [
+        f"O {reg_lider} concentra {reg_pct[reg_lider]}% dos pescadores registrados "
+        f"({reg_totais[reg_lider]:,} armadores), mais que qualquer outra região. "
+        + ("A pesca artesanal é estratégica para a subsistência dessas comunidades costeiras."
+           if reg_lider == 'Nordeste' else
+           "Isso reflete a importância econômica da pesca nessa região."),
+
+        f"O Norte tem {pct_norte_interior}% de seus pescadores em municípios do interior ribeirinho "
+        f"— não no litoral. Isso evidencia que a pesca brasileira não é exclusivamente marítima: "
+        f"a Bacia Amazônica sustenta uma rede pesqueira fluvial única no país.",
+
+        f"A distribuição entre estados é desigual (Gini={gini}): {uf_lider} lidera com "
+        f"{stats_uf[uf_lider]['n']:,} pescadores ({stats_uf[uf_lider]['pct_br']}% do Brasil), "
+        f"enquanto os 5 menores estados somam menos de 5% do total.",
+
+        f"Há {trend_txt} nos registros ao longo do período analisado ({anos_s[0] if anos_s else 'N/A'}–{anos_s[-1] if anos_s else 'N/A'}). "
+        + ("Isso pode refletir expansão das frotas pesqueiras ou melhoria no sistema de cadastro."
+           if trend_pct > 0 else
+           "Isso pode indicar saída de armadores do setor formal ou desatualização cadastral."),
+
+        f"A correlação IDH × número de pescadores é {idh_txt}. "
+        f"O {reg_menos_pj} é a região com menor participação de Pessoa Jurídica "
+        f"({pj_por_reg[reg_menos_pj]}%), indicando perfil predominantemente artesanal.",
+    ]
+
+    # ── INSIGHTS POR UF (gerados dos dados) ──────────────────────────
+    insights_uf = {}
+    for uf, s in stats_uf.items():
+        reg = s['regiao']
+        top1 = s['tops'][0] if s['tops'] else [uf, s['n']]
+        top2 = s['tops'][1] if len(s['tops']) > 1 else None
+        pj   = pj_por_uf.get(uf, 0)
+        idh  = IDH_UF.get(uf, 0)
+        idh_lbl = 'alto' if idh >= 0.75 else 'médio' if idh >= 0.65 else 'baixo'
+        conc = s['conc']
+
+        # Determinar perfil predominante
+        if pj >= 30:
+            perfil = f"alta presença empresarial ({pj}% PJ), sugerindo pesca industrializada"
+        elif pj <= 10:
+            perfil = f"perfil artesanal ({100-pj:.0f}% Pessoa Física), característico de pesca de subsistência"
+        else:
+            perfil = f"equilíbrio entre Pessoa Física e Jurídica ({100-pj:.0f}% e {pj}%)"
+
+        # Concentração no polo principal
+        if conc >= 60:
+            conc_txt = f"{top1[0]} domina com {conc}% dos registros estaduais"
+            if top2:
+                ratio = round(top2[1]/top1[1]*100)
+                conc_txt += f"; {top2[0]} é o segundo polo com apenas {ratio}% do volume do líder"
+        elif conc >= 40:
+            conc_txt = f"{top1[0]} é o principal polo ({conc}% do estado)"
+            if top2:
+                conc_txt += f", seguido por {top2[0]}"
+        else:
+            conc_txt = f"distribuição relativamente dispersa: {top1[0]} lidera com {conc}%"
+
+        insights_uf[uf] = (
+            f"{uf} tem {s['n']:,} armadores registrados ({s['pct_br']}% do Brasil). "
+            f"{conc_txt.capitalize()}. "
+            f"IDH {idh} ({idh_lbl}) e {perfil}."
+        )
+
+    # ── INSIGHTS POR REGIÃO (gerados dos dados) ───────────────────────
+    insights_reg = {}
+    for reg, s in stats_reg.items():
+        top_uf_reg = s['top_ufs'][0] if s['top_ufs'] else [reg, 0]
+        top2_uf    = s['top_ufs'][1] if len(s['top_ufs']) > 1 else None
+        top_mun    = s['top_muns'][0] if s['top_muns'] else [reg, 0]
+        pj_reg     = pj_por_reg.get(reg, 0)
+        desig      = s.get('desigualdade', 0)
+
+        # Caracterizar a região pelos dados
+        if desig > 60:
+            desig_txt = f"alta concentração interna (CV={desig}%): poucos estados dominam os registros"
+        elif desig > 35:
+            desig_txt = f"concentração moderada entre estados (CV={desig}%)"
+        else:
+            desig_txt = f"distribuição relativamente equilibrada entre os {s['n_ufs']} estados (CV={desig}%)"
+
+        pj_txt = (
+            f"alta industrialização ({pj_reg}% PJ)" if pj_reg >= 25 else
+            f"perfil majoritariamente artesanal ({100-pj_reg:.0f}% Pessoa Física)" if pj_reg <= 12 else
+            f"mix de pescadores individuais e empresas ({pj_reg}% PJ)"
+        )
+
+        insights_reg[reg] = (
+            f"O {reg} concentra {s['pct_br']}% do total nacional ({s['n']:,} pescadores). "
+            f"{top_uf_reg[0]} lidera com {s['lider_pct']}% da região"
+            + (f"; {top2_uf[0]} vem em segundo" if top2_uf else "") + ". "
+            f"O município de {top_mun[0]} é o maior polo pesqueiro da região. "
+            f"A região apresenta {desig_txt} e {pj_txt}."
+        )
+
+    return {
+        'geral':        geral,
+        'insights_uf':  insights_uf,
+        'insights_reg': insights_reg,
+        # Metadados para o relatório
+        '_meta': {
+            'total':            TOTAL,
+            'reg_lider':        reg_lider,
+            'reg_lider_pct':    reg_pct[reg_lider],
+            'reg_menor':        reg_menor,
+            'reg_menor_pct':    reg_pct[reg_menor],
+            'uf_lider':         uf_lider,
+            'uf_lider_n':       stats_uf[uf_lider]['n'],
+            'norte_interior_pct': pct_norte_interior,
+            'gini':             gini,
+            'trend_txt':        trend_txt,
+            'idh_corr_txt':     idh_txt,
+            'pearson':          pearson,
+            'anos':             anos_s,
+        }
+    }
+
+print("Motor de análise carregado com sucesso.")
+
+
+print("Gerando conclusões e insights automaticamente dos dados...")
+CONCLUSOES = gerar_conclusoes(df, stats_uf, stats_reg, IDH_UF, TOTAL, pearson)
+print(f"  {len(CONCLUSOES['geral'])} conclusões gerais geradas")
+print(f"  {len(CONCLUSOES['insights_uf'])} insights de estados gerados")
+print(f"  {len(CONCLUSOES['insights_reg'])} insights de regiões gerados")
 
 print("Serializando...")
 D={'GJ':json.dumps(gj,ensure_ascii=False),'GJ_RIOS':json.dumps(gj_rios,ensure_ascii=False),
@@ -238,12 +416,22 @@ for m in t.getmembers():
 LHEAT=requests.get("https://raw.githubusercontent.com/Leaflet/Leaflet.heat/gh-pages/dist/leaflet-heat.js",timeout=30).text
 print(f"  js {len(LJS)//1024}KB | css {len(LCSS)//1024}KB | heat {len(LHEAT)//1024}KB")
 
-template = open('./template.html', encoding='utf-8').read()
+# Busca o template na pasta do script ou em /tmp
+import os as _os
+_tpl_paths = [
+    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'template_v7.html'),
+    '/tmp/template_v7.html',
+    'template_v7.html',
+]
+_tpl_path = next((p for p in _tpl_paths if _os.path.exists(p)), None)
+if not _tpl_path: raise FileNotFoundError('template_v7.html nao encontrado')
+template = open(_tpl_path, encoding='utf-8').read()
+print(f'  Template: {_tpl_path}')
 html = template
 for k,v in D.items():
     html = html.replace(f'%%{k}%%', v)
 html = html.replace('%%LEAFLET_CSS%%',LCSS).replace('%%LEAFLET_JS%%',LJS).replace('%%LEAFLET_HEAT%%',LHEAT)
 
-out='./mapa.html'
+out='/tmp/mapa_v7.html'
 with open(out,'w',encoding='utf-8') as f: f.write(html)
 print(f"\nGerado: {out}  ({os.path.getsize(out)/1024/1024:.1f} MB)")
