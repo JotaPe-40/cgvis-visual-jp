@@ -81,29 +81,61 @@ html, body { width: 100%; height: 100%; overflow: hidden;
 #btn-back:hover { background: var(--accent); color: #fff; }
 
 /* ── BUSCA ────────────────────────────────────────────────────────────── */
-#search-wrap { position: absolute; top: 14px; left: 14px; z-index: 1000; }
+/* ── BUSCA ────────────────────────────────────────────────────────────── */
+/* 1. O contêiner PAI agora controla a posição de todo o conjunto na tela */
+#search-wrap { 
+  position: absolute; 
+  top: 14px; 
+  right: 380px;      /* Fixa a distância a partir da borda DIREITA */
+  left: auto;        /* Desfaz a ancoragem original à esquerda */
+  z-index: 1000; 
+}
+
+/* 2. O input herda e preenche o espaço de forma limpa e estável */
 #search-input {
-  width: 210px; padding: 8px 14px 8px 34px;
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: 10px; color: var(--text); font-size: 12px; font-family: inherit;
-  outline: none; transition: all .2s;
-  box-shadow: 0 2px 8px rgba(0,0,0,.2); backdrop-filter: blur(8px);
-  position: absolute;
-  top: 20px;       /* Distância do topo */
-  right: 20px;     /* Move o elemento para a extrema DIREITA */
-  left: auto;      /* Desfaz qualquer ancoragem à esquerda anterior */
-  z-index: 1000;   /* Garante que ele fica flutuando acima do mapa e camadas */
+  width: 210px; 
+  padding: 8px 14px 8px 34px;
+  background: var(--bg2); 
+  border: 1px solid var(--border);
+  border-radius: 10px; 
+  color: var(--text); 
+  font-size: 12px; 
+  font-family: inherit;
+  outline: none; 
+  transition: all .2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2); 
+  backdrop-filter: blur(8px);
 }
 #search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
 #search-input::placeholder { color: var(--text3); }
-#search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-  font-size: 13px; pointer-events: none; }
+
+/* 3. O ícone da lupa permanece perfeitamente alinhado à esquerda dentro do input */
+#search-icon { 
+  position: absolute; 
+  left: 10px; 
+  top: 50%; 
+  transform: translateY(-50%);
+  font-size: 13px; 
+  pointer-events: none; 
+  z-index: 1001;     /* Garante que fica visível por cima do fundo do input */
+}
+
+/* 4. A caixa de resultados suspensa acompanhará o input e abrirá alinhada abaixo dele */
 #search-results {
-  position: absolute; top: calc(100% + 4px); left: 0; width: 240px;
-  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
-  max-height: 220px; overflow-y: auto; display: none; z-index: 1001;
+  position: absolute; 
+  top: calc(100% + 4px); 
+  left: 0; 
+  width: 258px;      /* Ajustado para 258px (210px de largura + padding lateral do input) */
+  background: var(--bg2); 
+  border: 1px solid var(--border); 
+  border-radius: 10px;
+  max-height: 220px; 
+  overflow-y: auto; 
+  display: none; 
+  z-index: 1001;
   box-shadow: 0 8px 24px rgba(0,0,0,.3);
 }
+
 .sr-item { padding: 8px 14px; cursor: pointer; font-size: 12px; color: var(--text);
   border-bottom: 1px solid var(--border); transition: background .15s; }
 .sr-item:last-child { border: none; }
@@ -113,7 +145,7 @@ html, body { width: 100%; height: 100%; overflow: hidden;
 .search-pin-icon { width: 14px; height: 14px; border-radius: 50%;
   background: #fff; border: 3px solid var(--accent);
   box-shadow: 0 0 8px var(--accent); }
-
+  
 /* ── CONTROLES (canto inferior esquerdo) ─────────────────────────────── */
 #ctrls { position: absolute; bottom: 20px; left: 14px; z-index: 1000;
   display: flex; flex-direction: column; gap: 4px; }
@@ -383,7 +415,7 @@ html, body { width: 100%; height: 100%; overflow: hidden;
 
   <!-- Busca -->
   <div id="search-wrap">
-    <span id="search-icon">🔍</span>
+    <span id="search-icon"></span>
     <input id="search-input" type="text" placeholder="Buscar município..."
       oninput="buscarMunicipio(this.value)" onblur="setTimeout(fecharBusca,200)">
     <div id="search-results"></div>
