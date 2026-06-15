@@ -416,15 +416,21 @@ for m in t.getmembers():
 LHEAT=requests.get("https://raw.githubusercontent.com/Leaflet/Leaflet.heat/gh-pages/dist/leaflet-heat.js",timeout=30).text
 print(f"  js {len(LJS)//1024}KB | css {len(LCSS)//1024}KB | heat {len(LHEAT)//1024}KB")
 
+# Injetar variáveis no escopo e executar
+    # Define __file__ for exec() context
+    exec_globals = globals().copy()
+    exec_globals['__file__'] = 'build_map.py'
+    exec(open('build_map.py').read(), exec_globals)
+
 # Busca o template na pasta do script ou em /tmp
 import os as _os
 _tpl_paths = [
-    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'template_v7.html'),
-    '/tmp/template_v7.html',
-    'template_v7.html',
+    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'template.html'),
+    './template.html',
+    'template.html',
 ]
 _tpl_path = next((p for p in _tpl_paths if _os.path.exists(p)), None)
-if not _tpl_path: raise FileNotFoundError('template_v7.html nao encontrado')
+if not _tpl_path: raise FileNotFoundError('template.html nao encontrado')
 template = open(_tpl_path, encoding='utf-8').read()
 print(f'  Template: {_tpl_path}')
 html = template
@@ -432,6 +438,6 @@ for k,v in D.items():
     html = html.replace(f'%%{k}%%', v)
 html = html.replace('%%LEAFLET_CSS%%',LCSS).replace('%%LEAFLET_JS%%',LJS).replace('%%LEAFLET_HEAT%%',LHEAT)
 
-out='/tmp/mapa_v7.html'
+out='./mapa.html'
 with open(out,'w',encoding='utf-8') as f: f.write(html)
 print(f"\nGerado: {out}  ({os.path.getsize(out)/1024/1024:.1f} MB)")

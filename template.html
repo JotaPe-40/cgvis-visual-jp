@@ -519,27 +519,31 @@ function toggleTheme() {
 // ── MAPA ────────────────────────────────────────────────────────────────
 const BRASIL = L.latLngBounds(L.latLng(-34.5,-74.5), L.latLng(6.5,-27.5));
 
-// FIX isolamento: NÃO usar preferCanvas:true
-// Isso garante que polígonos SVG ficam em pane separado do canvas do heatmap
 const map = L.map('map', {
   center:[-14,-52], zoom:4, minZoom:4, maxZoom:13,
   zoomControl:true, maxBounds:BRASIL, maxBoundsViscosity:1.0,
-  // preferCanvas: false (default) — polígonos em SVG, heatmap em canvas separado
 });
 
-// Fundo mundial escuro — salvo em variável para atualizar no toggle de tema
-const bgRect = L.rectangle([[-90,-180],[90,180]], {
-  color:'#0f172a', fillColor:'#0f172a', fillOpacity:1,
-  stroke:false, interactive:false
-}).addTo(map);
+// ── CONFIGURAÇÃO DE PANES (Deve vir ANTES de adicionar camadas a eles) ───
+// Criar um painel exclusivo para o fundo escuro ficar sempre na última camada
+map.createPane('bgPane');
+map.getPane('bgPane').style.zIndex = 200;
 
-// ── HEATMAP ─────────────────────────────────────────────────────────────
-// FIX: criar heatLayer no pane correto, APÓS mapa pronto
-// Pane customizado z=380, abaixo dos poligonos SVG (overlayPane=400)
+// Garantir que o painel do heatmap fica acima do fundo, mas abaixo dos estados
 map.createPane('heatPane');
-map.getPane('heatPane').style.zIndex = 450;
+map.getPane('heatPane').style.zIndex = 450; 
 map.getPane('heatPane').style.pointerEvents = 'none';
 
+
+// Fundo mundial escuro (agora com a vírgula correta e o pane já criado)
+const bgRect = L.rectangle([[-90,-180],[90,180]], {
+  color:'#0f172a', fillColor:'#0f172a', fillOpacity:1,
+  stroke:false, interactive:false, // <--- Vírgula corrigida aqui
+  pane: 'bgPane'
+}).addTo(map);
+
+
+// ── HEATMAP ─────────────────────────────────────────────────────────────
 const HOPTS = {
   pane: 'heatPane',
   radius:22, blur:18, maxZoom:13, max:1.0,
@@ -547,8 +551,13 @@ const HOPTS = {
   minOpacity:0.45,
 };
 let heatLayer = null;
+let heatOn = true; // <--- Certifique-se de que começa como TRUE se adicionado no quandoReady
 
 function criarHeat(data, r) {
+  // Se já existir uma camada de heat ativa no mapa, removemos para evitar duplicidade
+  if (heatLayer && map.hasLayer(heatLayer)) {
+    map.removeLayer(heatLayer);
+  }
   return L.heatLayer(data, Object.assign({}, HOPTS, {radius:r, blur:Math.round(r*.85)}));
 }
 
@@ -559,6 +568,15 @@ map.whenReady(() => {
   heatLayer.addTo(map);
   setTimeout(() => { map.invalidateSize(); map.fire('moveend'); }, 200);
 });
+
+// FIX: whenReady garante dimensões corretas antes de renderizar o heatmap
+map.whenReady(() => {
+  map.invalidateSize();
+  heatLayer = criarHeat(HEAT_BR, 22);
+  heatLayer.addTo(map);
+  setTimeout(() => { map.invalidateSize(); map.fire('moveend'); }, 200);
+});
+
 
 // ── RIOS ─────────────────────────────────────────────────────────────────
 const riosLayer = L.geoJSON(GJ_RIOS, {
