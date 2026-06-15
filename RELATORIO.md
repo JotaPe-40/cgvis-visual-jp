@@ -33,7 +33,7 @@ A visualização principal é **interativa** — arquivo `mapa.html`.
   Botão de download do relatório por estado ou região
   Controle de camadas: Heatmap de concentração, Pontos individuais, Rios
 
-![Visualização resultante](grafico_resumo_pescadores.png)
+![Visualização resultante](visualMapa.png)
 
 ## Descrição da visualização
 
