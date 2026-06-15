@@ -88,6 +88,11 @@ html, body { width: 100%; height: 100%; overflow: hidden;
   border-radius: 10px; color: var(--text); font-size: 12px; font-family: inherit;
   outline: none; transition: all .2s;
   box-shadow: 0 2px 8px rgba(0,0,0,.2); backdrop-filter: blur(8px);
+  position: absolute;
+  top: 20px;       /* Distância do topo */
+  right: 20px;     /* Move o elemento para a extrema DIREITA */
+  left: auto;      /* Desfaz qualquer ancoragem à esquerda anterior */
+  z-index: 1000;   /* Garante que ele fica flutuando acima do mapa e camadas */
 }
 #search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
 #search-input::placeholder { color: var(--text3); }
