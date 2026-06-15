@@ -742,24 +742,62 @@ html, body { width: 100%; height: 100%; overflow: hidden;
 #btn-back:hover { background: var(--accent); color: #fff; }
 
 /* ── BUSCA ────────────────────────────────────────────────────────────── */
-#search-wrap { position: absolute; top: 14px; left: 14px; z-index: 1000; }
+/* ── BUSCA ────────────────────────────────────────────────────────────── */
+/* 1. O contêiner PAI agora controla a posição de todo o conjunto na tela */
+#search-wrap { 
+  position: absolute; 
+  top: 14px; 
+  right: 380px;      /* Fixa a distância a partir da borda DIREITA */
+  left: auto;        /* Desfaz a ancoragem original à esquerda */
+  z-index: 1000; 
+}
+
+/* 2. O input herda e preenche o espaço de forma limpa e estável */
 #search-input {
-  width: 210px; padding: 8px 14px 8px 34px;
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: 10px; color: var(--text); font-size: 12px; font-family: inherit;
-  outline: none; transition: all .2s;
-  box-shadow: 0 2px 8px rgba(0,0,0,.2); backdrop-filter: blur(8px);
+  width: 210px; 
+  padding: 8px 14px 8px 34px;
+  background: var(--bg2); 
+  border: 1px solid var(--border);
+  border-radius: 10px; 
+  color: var(--text); 
+  font-size: 12px; 
+  font-family: inherit;
+  outline: none; 
+  transition: all .2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2); 
+  backdrop-filter: blur(8px);
+  position: fixed;
 }
 #search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
 #search-input::placeholder { color: var(--text3); }
-#search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-  font-size: 13px; pointer-events: none; }
+
+/* 3. O ícone da lupa permanece perfeitamente alinhado à esquerda dentro do input */
+#search-icon { 
+  position: absolute; 
+  left: 10px; 
+  top: 50%; 
+  transform: translateY(-50%);
+  font-size: 13px; 
+  pointer-events: none; 
+  z-index: 1001;     /* Garante que fica visível por cima do fundo do input */
+}
+
+/* 4. A caixa de resultados suspensa acompanhará o input e abrirá alinhada abaixo dele */
 #search-results {
-  position: absolute; top: calc(100% + 4px); left: 0; width: 240px;
-  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
-  max-height: 220px; overflow-y: auto; display: none; z-index: 1001;
+  position: absolute; 
+  top: calc(100% + 4px); 
+  left: 0; 
+  width: 358px;      /* Ajustado para 258px (210px de largura + padding lateral do input) */
+  background: var(--bg2); 
+  border: 1px solid var(--border); 
+  border-radius: 10px;
+  max-height: 220px; 
+  overflow-y: auto; 
+  display: none; 
+  z-index: 1001;
   box-shadow: 0 8px 24px rgba(0,0,0,.3);
 }
+
 .sr-item { padding: 8px 14px; cursor: pointer; font-size: 12px; color: var(--text);
   border-bottom: 1px solid var(--border); transition: background .15s; }
 .sr-item:last-child { border: none; }
@@ -1039,7 +1077,7 @@ html, body { width: 100%; height: 100%; overflow: hidden;
 
   <!-- Busca -->
   <div id="search-wrap">
-    <span id="search-icon">🔍</span>
+    <span id="search-icon"></span>
     <input id="search-input" type="text" placeholder="Buscar município..."
       oninput="buscarMunicipio(this.value)" onblur="setTimeout(fecharBusca,200)">
     <div id="search-results"></div>
@@ -1193,28 +1231,18 @@ function toggleTheme() {
 }
 
 // ── MAPA ────────────────────────────────────────────────────────────────
+// ── MAPA ────────────────────────────────────────────────────────────────
 const BRASIL = L.latLngBounds(L.latLng(-34.5,-74.5), L.latLng(6.5,-27.5));
 
-// FIX isolamento: NÃO usar preferCanvas:true
-// Isso garante que polígonos SVG ficam em pane separado do canvas do heatmap
+// FIX isolamento: NÃO usar preferCanvas:true para manter SVG e Canvas separados
 const map = L.map('map', {
   center:[-14,-52], zoom:4, minZoom:4, maxZoom:13,
-  zoomControl:true, maxBounds:BRASIL, maxBoundsViscosity:1.0,
-  // preferCanvas: false (default) — polígonos em SVG, heatmap em canvas separado
+  zoomControl:true, maxBounds:BRASIL, maxBoundsViscosity:1.0
 });
 
-// Fundo mundial escuro — salvo em variável para atualizar no toggle de tema
-const bgRect = L.rectangle([[-90,-180],[90,180]], {
-  color:'#0f172a', fillColor:'#0f172a', fillOpacity:1,
-  stroke:false, interactive:false
-}).addTo(map);
-
-// ── HEATMAP ─────────────────────────────────────────────────────────────
-// FIX: criar heatLayer no pane correto, APÓS mapa pronto
-// Pane customizado z=380, abaixo dos poligonos SVG (overlayPane=400)
-map.createPane('heatPane');
-map.getPane('heatPane').style.zIndex = 450;
-map.getPane('heatPane').style.pointerEvents = 'none';
+// Guardamos a referência global do fundo mundial escuro e do heatmap
+let bgRect = null;
+let heatLayer = null;
 
 const HOPTS = {
   pane: 'heatPane',
@@ -1222,11 +1250,47 @@ const HOPTS = {
   gradient:{0:'#0000ff',0.2:'#00ccff',0.4:'#00ff88',0.6:'#ffff00',0.8:'#ff8800',1:'#f00'},
   minOpacity:0.45,
 };
-let heatLayer = null;
 
 function criarHeat(data, r) {
+  // Se já existir uma camada ativa, remove do mapa antes de criar a nova
+  if (heatLayer && map.hasLayer(heatLayer)) {
+    map.removeLayer(heatLayer);
+  }
   return L.heatLayer(data, Object.assign({}, HOPTS, {radius:r, blur:Math.round(r*.85)}));
 }
+
+// ── INICIALIZAÇÃO SEGURA DO MAPA E PANES ─────────────────────────────────
+// O whenReady garante que o Leaflet não vai quebrar ao criar elementos e panes
+map.whenReady(() => {
+  // 1. Criar os painéis customizados com segurança
+  map.createPane('bgPane');
+  map.getPane('bgPane').style.zIndex = 200;
+
+  map.createPane('heatPane');
+  map.getPane('heatPane').style.zIndex = 450; 
+  map.getPane('heatPane').style.pointerEvents = 'none';
+
+  // 2. Adicionar o fundo escuro atrelado ao painel inferior
+  bgRect = L.rectangle([[-90,-180],[90,180]], {
+    color:'#0f172a', fillColor:'#0f172a', fillOpacity:1,
+    stroke:false, interactive:false,
+    pane: 'bgPane'
+  }).addTo(map);
+
+  // 3. Inicializar o tamanho do mapa e renderizar o heatmap inicial
+  map.invalidateSize();
+  
+  if (typeof HEAT_BR !== 'undefined' && HEAT_BR.length > 0) {
+    heatLayer = criarHeat(HEAT_BR, 22);
+    heatLayer.addTo(map);
+  }
+
+  // Ajuste fino para renderização correta do Canvas do heatmap
+  setTimeout(() => { 
+    map.invalidateSize(); 
+    map.fire('moveend'); 
+  }, 200);
+});
 
 // FIX: whenReady garante dimensões corretas antes de renderizar o heatmap
 map.whenReady(() => {
@@ -1235,6 +1299,15 @@ map.whenReady(() => {
   heatLayer.addTo(map);
   setTimeout(() => { map.invalidateSize(); map.fire('moveend'); }, 200);
 });
+
+// FIX: whenReady garante dimensões corretas antes de renderizar o heatmap
+map.whenReady(() => {
+  map.invalidateSize();
+  heatLayer = criarHeat(HEAT_BR, 22);
+  heatLayer.addTo(map);
+  setTimeout(() => { map.invalidateSize(); map.fire('moveend'); }, 200);
+});
+
 
 // ── RIOS ─────────────────────────────────────────────────────────────────
 const riosLayer = L.geoJSON(GJ_RIOS, {
@@ -1384,27 +1457,57 @@ function voltarBrasil() {
 function toggleCamada(tipo) {
   if (tipo === 'heat') {
     heatOn = !heatOn;
+    
+    // Atualiza o estado visual do botão no painel de controle
+    const btn = document.getElementById('c-heat');
+    if (btn) btn.classList.toggle('on', heatOn);
+
+    // 1. SEMPRE remove a camada anterior se ela existir para evitar duplicação catastrófica
+    if (heatLayer) {
+      map.removeLayer(heatLayer);
+      heatLayer = null;
+    }
+
+    // 2. Se foi ligado, reconstrói com os dados corretos do escopo
     if (heatOn) {
-      const d = sel&&selTipo==='uf' ? HEAT_UF[sel]
-              : sel&&selTipo==='reg'? HEAT_REG[sel] : HEAT_BR;
-      if (heatLayer) map.removeLayer(heatLayer);
-      heatLayer = criarHeat(d||[], sel?26:22);
+      const d = (sel && selTipo === 'uf') ? HEAT_UF[sel]
+              : (sel && selTipo === 'reg') ? HEAT_REG[sel] 
+              : HEAT_BR;
+              
+      // Cria a nova camada e adiciona ao mapa
+      heatLayer = criarHeat(d || [], sel ? 26 : 22);
       heatLayer.addTo(map);
+      
+      // Força o Leaflet a renderizar o Canvas imediatamente
       setTimeout(() => map.fire('moveend'), 50);
-    } else if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
-    document.getElementById('c-heat').classList.toggle('on', heatOn);
-  } else if (tipo === 'pontos') {
+    }
+  } 
+  else if (tipo === 'pontos') {
     pontosOn = !pontosOn;
-    if (pontosOn) { buildPontos(); pontosLayer.addTo(map); }
-    else map.removeLayer(pontosLayer);
-    document.getElementById('c-pontos').classList.toggle('on', pontosOn);
-  } else {
+    
+    if (pontosOn) { 
+      buildPontos(); 
+      if (pontosLayer) pontosLayer.addTo(map); 
+    } else { 
+      if (pontosLayer) map.removeLayer(pontosLayer); 
+    }
+    
+    const btnPontos = document.getElementById('c-pontos');
+    if (btnPontos) btnPontos.classList.toggle('on', pontosOn);
+  } 
+  else {
     riosOn = !riosOn;
-    if (riosOn) riosLayer.addTo(map); else map.removeLayer(riosLayer);
-    document.getElementById('c-rios').classList.toggle('on', riosOn);
+    
+    if (riosOn) {
+      if (riosLayer) riosLayer.addTo(map); 
+    } else { 
+      if (riosLayer) map.removeLayer(riosLayer); 
+    }
+    
+    const btnRios = document.getElementById('c-rios');
+    if (btnRios) btnRios.classList.toggle('on', riosOn);
   }
 }
-
 // ── PAINEL / TABS ────────────────────────────────────────────────────────
 function togglePanel() {
   panelOn = !panelOn;
