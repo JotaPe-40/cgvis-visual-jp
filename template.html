@@ -726,27 +726,57 @@ function voltarBrasil() {
 function toggleCamada(tipo) {
   if (tipo === 'heat') {
     heatOn = !heatOn;
+    
+    // Atualiza o estado visual do botão no painel de controle
+    const btn = document.getElementById('c-heat');
+    if (btn) btn.classList.toggle('on', heatOn);
+
+    // 1. SEMPRE remove a camada anterior se ela existir para evitar duplicação catastrófica
+    if (heatLayer) {
+      map.removeLayer(heatLayer);
+      heatLayer = null;
+    }
+
+    // 2. Se foi ligado, reconstrói com os dados corretos do escopo
     if (heatOn) {
-      const d = sel&&selTipo==='uf' ? HEAT_UF[sel]
-              : sel&&selTipo==='reg'? HEAT_REG[sel] : HEAT_BR;
-      if (heatLayer) map.removeLayer(heatLayer);
-      heatLayer = criarHeat(d||[], sel?26:22);
+      const d = (sel && selTipo === 'uf') ? HEAT_UF[sel]
+              : (sel && selTipo === 'reg') ? HEAT_REG[sel] 
+              : HEAT_BR;
+              
+      // Cria a nova camada e adiciona ao mapa
+      heatLayer = criarHeat(d || [], sel ? 26 : 22);
       heatLayer.addTo(map);
+      
+      // Força o Leaflet a renderizar o Canvas imediatamente
       setTimeout(() => map.fire('moveend'), 50);
-    } else if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
-    document.getElementById('c-heat').classList.toggle('on', heatOn);
-  } else if (tipo === 'pontos') {
+    }
+  } 
+  else if (tipo === 'pontos') {
     pontosOn = !pontosOn;
-    if (pontosOn) { buildPontos(); pontosLayer.addTo(map); }
-    else map.removeLayer(pontosLayer);
-    document.getElementById('c-pontos').classList.toggle('on', pontosOn);
-  } else {
+    
+    if (pontosOn) { 
+      buildPontos(); 
+      if (pontosLayer) pontosLayer.addTo(map); 
+    } else { 
+      if (pontosLayer) map.removeLayer(pontosLayer); 
+    }
+    
+    const btnPontos = document.getElementById('c-pontos');
+    if (btnPontos) btnPontos.classList.toggle('on', pontosOn);
+  } 
+  else {
     riosOn = !riosOn;
-    if (riosOn) riosLayer.addTo(map); else map.removeLayer(riosLayer);
-    document.getElementById('c-rios').classList.toggle('on', riosOn);
+    
+    if (riosOn) {
+      if (riosLayer) riosLayer.addTo(map); 
+    } else { 
+      if (riosLayer) map.removeLayer(riosLayer); 
+    }
+    
+    const btnRios = document.getElementById('c-rios');
+    if (btnRios) btnRios.classList.toggle('on', riosOn);
   }
 }
-
 // ── PAINEL / TABS ────────────────────────────────────────────────────────
 function togglePanel() {
   panelOn = !panelOn;
