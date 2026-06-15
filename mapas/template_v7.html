@@ -551,7 +551,7 @@ map.whenReady(() => {
   map.invalidateSize();
   heatLayer = criarHeat(HEAT_BR, 22);
   heatLayer.addTo(map);
-  setTimeout(() => { map.invalidateSize(); map.fire('moveend'); }, 200);
+  setTimeout(() => map.invalidateSize(), 150);
 });
 
 // ── RIOS ─────────────────────────────────────────────────────────────────
